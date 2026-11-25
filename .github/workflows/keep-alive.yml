@@ -1,0 +1,23 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    - cron: "0 6 */5 * *" # Alle 5 Tage um 06:00 UTC
+  workflow_dispatch:       # Lässt sich jederzeit manuell testen
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Supabase health_ping aufrufen
+        run: |
+          URL=$(sed -n 's/.*supabaseUrl:[[:space:]]*"\([^"]*\)".*/\1/p' config.js)
+          KEY=$(sed -n 's/.*supabaseKey:[[:space:]]*"\([^"]*\)".*/\1/p' config.js)
+          RESPONSE=$(curl --fail --silent --show-error -X POST "$URL/rest/v1/rpc/health_ping" \
+            -H "apikey: $KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          echo "Antwort von Supabase: $RESPONSE"
