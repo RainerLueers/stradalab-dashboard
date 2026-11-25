@@ -1026,6 +1026,7 @@
     previewBox.classList.add("hidden");
     previewBox.textContent = "";
     uploadSubmitBtn.disabled = true;
+    uploadSubmitBtn.textContent = "Tour veröffentlichen";
     clearMsg(uploadMsg);
 
     const defVis = window.StradaApp?.profile?.default_visibility || "club";
@@ -1089,8 +1090,9 @@
         previewBox.appendChild(createStatItem("Ø Trittfrequenz", `${parsedTour.avg_cadence_rpm} rpm`));
       }
 
-      previewBox.classList.remove("hidden");
-      uploadSubmitBtn.disabled = false;
+previewBox.classList.remove("hidden");
+      uploadSubmitBtn.disabled = true;
+      uploadSubmitBtn.textContent = "Prüfe Dupletten…";
 
       if (selectedFileType === "fit" && parsedTour.has_gps === false) {
         showMsg(
@@ -1100,24 +1102,35 @@
         );
       }
 
-      // Asynchron auf mögliche Duplette prüfen
+      // Asynchron auf Duplette prüfen – bei Treffer bleibt der Upload gesperrt
       const mySeq = ++dupCheckSeq;
       const tourSnapshot = parsedTour;
-      findDuplicateTour(tourSnapshot).then((match) => {
-        if (mySeq !== dupCheckSeq || parsedTour !== tourSnapshot) return;
-        duplicateTour = match;
-        if (match) {
-          showMsg(
-            uploadMsg,
-            `Duplette erkannt: „${match.title}“ (${formatDate(match.started_at)} · ${formatKm(match.distance_m)}) ist bereits hochgeladen.`,
-            "error"
-          );
-        }
-      });
+      findDuplicateTour(tourSnapshot)
+        .then((match) => {
+          if (mySeq !== dupCheckSeq || parsedTour !== tourSnapshot) return;
+          duplicateTour = match;
+          uploadSubmitBtn.textContent = "Tour veröffentlichen";
+          if (match) {
+            uploadSubmitBtn.disabled = true;
+            showMsg(
+              uploadMsg,
+              `Duplette erkannt: „${match.title}“ (${formatDate(match.started_at)} · ${formatKm(match.distance_m)}) ist bereits hochgeladen. Upload gesperrt.`,
+              "error"
+            );
+          } else {
+            uploadSubmitBtn.disabled = false;
+          }
+        })
+        .catch(() => {
+          if (mySeq !== dupCheckSeq || parsedTour !== tourSnapshot) return;
+          uploadSubmitBtn.textContent = "Tour veröffentlichen";
+          uploadSubmitBtn.disabled = false;
+        });
     } catch (err) {
       parsedTour = null;
       previewBox.classList.add("hidden");
       uploadSubmitBtn.disabled = true;
+      uploadSubmitBtn.textContent = "Tour veröffentlichen";
       showMsg(uploadMsg, err.message, "error");
     }
   }
@@ -1209,16 +1222,15 @@
     const dup = duplicateTour || (await findDuplicateTour(parsedTour));
     if (dup) {
       duplicateTour = dup;
-      const msg = `Duplette erkannt: „${dup.title}“ (${formatDate(dup.started_at)} · ${formatKm(dup.distance_m)}) ist bereits vorhanden.`;
-      showMsg(uploadMsg, msg, "error");
-      const forceUpload = window.confirm(
-        `${msg}\n\nMöchtest du diese Tour trotzdem erneut hochladen?`
+      showMsg(
+        uploadMsg,
+        `Duplette erkannt: „${dup.title}“ (${formatDate(dup.started_at)} · ${formatKm(dup.distance_m)}) ist bereits hochgeladen. Upload gesperrt.`,
+        "error"
       );
-      if (!forceUpload) {
-        uploadSubmitBtn.disabled = false;
-        uploadSubmitBtn.textContent = "Tour veröffentlichen";
-        return;
-      }
+      uploadSubmitBtn.disabled = true;
+      uploadSubmitBtn.textContent = "Tour veröffentlichen";
+      return;
+    }
     }
 
     let weatherData = null;
