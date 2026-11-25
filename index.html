@@ -253,6 +253,11 @@
           <span>Privatsphäre: Start & Ziel auf Karte und in der GPX um 400 m kürzen</span>
         </label>
 
+<label class="checkbox-row">
+          <input type="checkbox" id="upload-weather" checked>
+          <span>Wetter automatisch für Fahrtzeit & Streckenmitte abrufen (Open-Meteo)</span>
+        </label>
+
         <button type="submit" id="upload-submit-btn" class="btn btn-primary" disabled>Tour veröffentlichen</button>
         <p id="upload-msg" class="msg hidden"></p>
       </form>
@@ -342,6 +347,7 @@
   <script src="config.js"></script>
   <script src="app.js"></script>
   <script src="gpx.js"></script>
+  <script src="weather.js"></script>
   <script src="feed.js"></script>
   <script src="admin.js"></script>
 </body>

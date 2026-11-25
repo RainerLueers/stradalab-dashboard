@@ -916,3 +916,33 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   WETTER-ANZEIGE IN TOUR-KARTEN
+   ========================================================================== */
+
+.tour-weather {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  border: 1px solid #e6edf5;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.weather-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.weather-main {
+  font-weight: 700;
+  color: var(--text);
+}

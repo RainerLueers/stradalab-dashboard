@@ -36,6 +36,7 @@
   const uploadVisibility = document.getElementById("upload-visibility");
   const uploadDesc = document.getElementById("upload-desc");
   const uploadPrivacy = document.getElementById("upload-privacy");
+  const uploadWeather = document.getElementById("upload-weather");
   const uploadSubmitBtn = document.getElementById("upload-submit-btn");
   const uploadMsg = document.getElementById("upload-msg");
 
@@ -185,7 +186,7 @@
     }
   }
 
-  // Touren inkl. Kudos und Kommentaren laden (RLS filtert automatisch)
+  // Touren inkl. Kudos, Kommentaren und Wetter laden
   async function loadTours() {
     const app = window.StradaApp;
     if (!app || !app.user) return;
@@ -249,7 +250,7 @@
   }
 
   // ==========================================================================
-  // TOUR-KARTE MIT KARTE, HÖHENPROFIL, KUDOS & KOMMENTAREN
+  // TOUR-KARTE MIT WETTER, KARTE, HÖHENPROFIL, KUDOS & KOMMENTAREN
   // ==========================================================================
   function renderTourCard(tour) {
     const app = window.StradaApp;
@@ -347,6 +348,18 @@
     }
     card.appendChild(statsRow);
 
+    // 3b. Wetter-Slot (wird bei vorhandenen Daten direkt gefüllt oder beim Nachladen befüllt)
+    const weatherSlot = document.createElement("div");
+    function renderWeatherSlot() {
+      weatherSlot.textContent = "";
+      if (tour.weather && window.StradaWeather) {
+        const el = window.StradaWeather.createWeatherElement(tour.weather);
+        if (el) weatherSlot.appendChild(el);
+      }
+    }
+    renderWeatherSlot();
+    card.appendChild(weatherSlot);
+
     // 4. Leaflet-Karte
     const coords = Array.isArray(tour.track_preview) ? tour.track_preview : [];
     let mapEl = null;
@@ -389,14 +402,13 @@
       card.appendChild(eleWrap);
     }
 
-    // 6. Fußzeile: Kudos, Kommentare-Schalter, Privacy-Hinweis & GPX-Download
+    // 6. Fußzeile: Kudos, Kommentare, Wetter nachladen (optional), Privacy-Hinweis & GPX-Download
     const footer = document.createElement("div");
     footer.className = "tour-footer";
 
     const actionsLeft = document.createElement("div");
     actionsLeft.className = "tour-actions-left";
 
-    // Kudos-Button (nur auf fremden Touren klickbar – serverseitig per RLS gesichert)
     const kudoBtn = document.createElement("button");
     kudoBtn.type = "button";
     kudoBtn.className = "btn-social btn-kudo";
@@ -473,7 +485,6 @@
 
     updateKudosUI();
 
-    // Kommentare-Button
     const commentToggleBtn = document.createElement("button");
     commentToggleBtn.type = "button";
     commentToggleBtn.className = "btn-social";
@@ -497,6 +508,54 @@
       actionsRight.appendChild(trimNote);
     }
 
+    // Wetter-Nachladen-Button für bestehende eigene Outdoor-Touren ohne Wetterdaten
+    if (
+      isOwner &&
+      !tour.weather &&
+      tour.sport_type !== "indoor" &&
+      coords.length >= 2 &&
+      window.StradaWeather
+    ) {
+      const weatherBtn = document.createElement("button");
+      weatherBtn.type = "button";
+      weatherBtn.className = "btn btn-ghost btn-sm";
+      weatherBtn.textContent = "Wetter laden";
+      weatherBtn.addEventListener("click", async () => {
+        weatherBtn.disabled = true;
+        weatherBtn.textContent = "Lade Wetter…";
+
+        const weather = await window.StradaWeather.fetchForTour({
+          startedAt: tour.started_at,
+          durationS: tour.elapsed_time_s || tour.moving_time_s || 0,
+          coords
+        });
+
+        if (!weather) {
+          weatherBtn.disabled = false;
+          weatherBtn.textContent = "Wetter laden";
+          alert("Für diesen Zeitpunkt/Ort konnten keine Wetterdaten abgerufen werden.");
+          return;
+        }
+
+        const { error } = await app.sb
+          .from("tours")
+          .update({ weather })
+          .eq("id", tour.id);
+
+        if (error) {
+          weatherBtn.disabled = false;
+          weatherBtn.textContent = "Wetter laden";
+          alert(`Wetter konnte nicht gespeichert werden: ${error.message}`);
+          return;
+        }
+
+        tour.weather = weather;
+        renderWeatherSlot();
+        weatherBtn.remove();
+      });
+      actionsRight.appendChild(weatherBtn);
+    }
+
     const downloadBtn = document.createElement("button");
     downloadBtn.type = "button";
     downloadBtn.className = "btn btn-ghost btn-sm";
@@ -509,7 +568,7 @@
     card.appendChild(footer);
     card.appendChild(kudosSummary);
 
-    // 7. Kommentarbereich (bei vorhandenen Kommentaren direkt geöffnet)
+    // 7. Kommentarbereich
     const commentsSection = document.createElement("div");
     commentsSection.className =
       tour.comments.length > 0 ? "comments-section" : "comments-section hidden";
@@ -601,7 +660,7 @@
 
         const bodyP = document.createElement("p");
         bodyP.className = "comment-body";
-        bodyP.textContent = c.body; // Strikt textContent gegen XSS
+        bodyP.textContent = c.body;
 
         content.appendChild(metaRow);
         content.appendChild(bodyP);
@@ -757,7 +816,6 @@
       }
     };
 
-    // Bei sehr flachen Touren mind. 20 m Spannweite, damit GPS-Rauschen nicht wie Berge wirkt
     if (maxEle - minEle < 20) {
       const mid = (maxEle + minEle) / 2;
       yScale.min = Math.floor(mid - 10);
@@ -927,6 +985,9 @@
 
     const defVis = window.StradaApp?.profile?.default_visibility || "club";
     uploadVisibility.value = defVis;
+    if (uploadWeather) {
+      uploadWeather.checked = uploadSport.value !== "indoor";
+    }
   }
 
   function openUploadModal() {
@@ -1023,6 +1084,12 @@
     if (selectedRawGpx) parseSelectedFile();
   });
 
+  uploadSport.addEventListener("change", () => {
+    if (uploadWeather) {
+      uploadWeather.checked = uploadSport.value !== "indoor";
+    }
+  });
+
   uploadForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!parsedTour) return;
@@ -1036,6 +1103,22 @@
 
     clearMsg(uploadMsg);
     uploadSubmitBtn.disabled = true;
+
+    let weatherData = null;
+    const shouldFetchWeather =
+      Boolean(uploadWeather?.checked) &&
+      uploadSport.value !== "indoor" &&
+      Boolean(window.StradaWeather);
+
+    if (shouldFetchWeather) {
+      uploadSubmitBtn.textContent = "Frage Wetter ab…";
+      weatherData = await window.StradaWeather.fetchForTour({
+        startedAt: parsedTour.started_at,
+        durationS: parsedTour.elapsed_time_s || parsedTour.moving_time_s || 0,
+        coords: parsedTour.track_preview
+      });
+    }
+
     uploadSubmitBtn.textContent = "Lade hoch…";
 
     const tourId = crypto.randomUUID();
@@ -1074,7 +1157,8 @@
       track_preview: parsedTour.track_preview,
       elevation_profile: parsedTour.elevation_profile,
       gpx_path: gpxPath,
-      privacy_trimmed: parsedTour.privacy_trimmed
+      privacy_trimmed: parsedTour.privacy_trimmed,
+      weather: weatherData
     });
 
     if (dbErr) {
