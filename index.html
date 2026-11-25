@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>StradaLab Club – Dashboard</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=1.0.0">
 </head>
 <body>
 
@@ -30,6 +30,8 @@
         <button type="submit" id="login-btn" class="btn btn-primary">Anmelden</button>
         <p id="login-error" class="msg msg-error hidden" role="alert"></p>
       </form>
+
+      <p class="version-note">Version <span class="app-version"></span></p>
     </div>
   </main>
 
@@ -42,7 +44,7 @@
             <span class="brand-dot"></span>
             <span id="nav-club-name">StradaLab Club</span>
           </div>
-         <nav class="nav-tabs" aria-label="Hauptnavigation">
+          <nav class="nav-tabs" aria-label="Hauptnavigation">
             <button type="button" class="nav-tab active" data-tab="feed">Aktivitäten</button>
             <button type="button" id="nav-tab-stats" class="nav-tab" data-tab="stats">Statistik</button>
             <button type="button" class="nav-tab" data-tab="profile">Freunde & Profil</button>
@@ -80,7 +82,7 @@
         <div id="feed-list" class="feed-list"></div>
       </section>
 
-<!-- TAB 1B: MONATS- & JAHRESSTATISTIK -->
+      <!-- TAB 1B: MONATS- & JAHRESSTATISTIK -->
       <section id="tab-stats" class="tab-panel hidden">
         <div class="stats-toolbar">
           <div class="stats-toolbar-left">
@@ -307,12 +309,16 @@
         </div>
       </section>
     </main>
+
+    <footer class="app-footer">
+      <span>StradaLab Club · Version <span class="app-version"></span></span>
+    </footer>
   </div>
 
-  <!-- MODAL: GPX-TOUR HOCHLADEN -->
+  <!-- MODAL: GPX-/FIT-TOUR HOCHLADEN -->
   <div id="upload-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="upload-modal-title">
     <div class="card modal-card">
-     <div class="modal-header">
+      <div class="modal-header">
         <h2 id="upload-modal-title">Tour hochladen (GPX / FIT)</h2>
         <button type="button" id="close-upload-btn" class="icon-btn" aria-label="Schließen">×</button>
       </div>
@@ -363,7 +369,7 @@
           <span>Privatsphäre: Start & Ziel auf Karte und in der GPX um 400 m kürzen</span>
         </label>
 
-<label class="checkbox-row">
+        <label class="checkbox-row">
           <input type="checkbox" id="upload-weather" checked>
           <span>Wetter automatisch für Fahrtzeit & Streckenmitte abrufen (Open-Meteo)</span>
         </label>
@@ -454,13 +460,13 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="config.js"></script>
-  <script src="app.js"></script>
-  <script src="gpx.js"></script>
-  <script src="fit.js"></script>
-  <script src="weather.js"></script>
-  <script src="feed.js"></script>
-  <script src="stats.js"></script>
-  <script src="admin.js"></script>
+  <script src="config.js?v=1.0.0"></script>
+  <script src="app.js?v=1.0.0"></script>
+  <script src="gpx.js?v=1.0.0"></script>
+  <script src="fit.js?v=1.0.0"></script>
+  <script src="weather.js?v=1.0.0"></script>
+  <script src="feed.js?v=1.0.0"></script>
+  <script src="stats.js?v=1.0.0"></script>
+  <script src="admin.js?v=1.0.0"></script>
 </body>
 </html>

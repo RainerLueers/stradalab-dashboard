@@ -45,6 +45,12 @@
     document.title = `${cfg.clubName} – Dashboard`;
   }
 
+  if (cfg.appVersion) {
+    document.querySelectorAll(".app-version").forEach((el) => {
+      el.textContent = `v${cfg.appVersion}`;
+    });
+  }
+
   // Konfigurations-Prüfung
   const keyMissing =
     !cfg.supabaseUrl ||
