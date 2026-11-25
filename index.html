@@ -73,7 +73,7 @@
               <option value="">Alle Mitglieder</option>
             </select>
           </div>
-          <button type="button" id="open-upload-btn" class="btn btn-primary">+ GPX-Tour hochladen</button>
+          <button type="button" id="open-upload-btn" class="btn btn-primary">+ GPX / FIT hochladen</button>
         </div>
 
         <p id="feed-status" class="muted hidden"></p>
@@ -312,15 +312,15 @@
   <!-- MODAL: GPX-TOUR HOCHLADEN -->
   <div id="upload-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="upload-modal-title">
     <div class="card modal-card">
-      <div class="modal-header">
-        <h2 id="upload-modal-title">GPX-Tour hochladen</h2>
+     <div class="modal-header">
+        <h2 id="upload-modal-title">Tour hochladen (GPX / FIT)</h2>
         <button type="button" id="close-upload-btn" class="icon-btn" aria-label="Schließen">×</button>
       </div>
 
       <form id="upload-form" class="stack">
         <div id="gpx-dropzone" class="dropzone">
-          <input type="file" id="gpx-file-input" accept=".gpx,application/gpx+xml" class="hidden">
-          <span id="gpx-file-name">GPX-Datei hierher ziehen oder klicken zum Auswählen</span>
+          <input type="file" id="gpx-file-input" accept=".gpx,.fit,application/gpx+xml,application/octet-stream" class="hidden">
+          <span id="gpx-file-name">GPX- oder FIT-Datei hierher ziehen oder klicken zum Auswählen</span>
         </div>
 
         <div id="gpx-preview-stats" class="stats-grid stats-preview hidden"></div>
@@ -457,6 +457,7 @@
   <script src="config.js"></script>
   <script src="app.js"></script>
   <script src="gpx.js"></script>
+  <script src="fit.js"></script>
   <script src="weather.js"></script>
   <script src="feed.js"></script>
   <script src="stats.js"></script>

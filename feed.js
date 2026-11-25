@@ -55,7 +55,8 @@
   let allTours = [];
   let activeMaps = [];
   let activeCharts = [];
-  let selectedRawGpx = null;
+  let selectedFileType = null; // "gpx" | "fit"
+  let selectedRawData = null; // string (GPX) | ArrayBuffer (FIT)
   let selectedFileName = "";
   let parsedTour = null;
 
@@ -348,7 +349,7 @@
     }
     card.appendChild(statsRow);
 
-    // 3b. Wetter-Slot (wird bei vorhandenen Daten direkt gefüllt oder beim Nachladen befüllt)
+    // 3b. Wetter-Slot
     const weatherSlot = document.createElement("div");
     function renderWeatherSlot() {
       weatherSlot.textContent = "";
@@ -402,7 +403,7 @@
       card.appendChild(eleWrap);
     }
 
-    // 6. Fußzeile: Kudos, Kommentare, Wetter nachladen (optional), Privacy-Hinweis & GPX-Download
+    // 6. Fußzeile: Kudos, Kommentare, Wetter nachladen, Privacy-Hinweis & GPX-Download
     const footer = document.createElement("div");
     footer.className = "tour-footer";
 
@@ -508,7 +509,6 @@
       actionsRight.appendChild(trimNote);
     }
 
-    // Wetter-Nachladen-Button für bestehende eigene Outdoor-Touren ohne Wetterdaten
     if (
       isOwner &&
       !tour.weather &&
@@ -556,12 +556,14 @@
       actionsRight.appendChild(weatherBtn);
     }
 
-    const downloadBtn = document.createElement("button");
-    downloadBtn.type = "button";
-    downloadBtn.className = "btn btn-ghost btn-sm";
-    downloadBtn.textContent = "GPX herunterladen";
-    downloadBtn.addEventListener("click", () => downloadGpx(tour, downloadBtn));
-    actionsRight.appendChild(downloadBtn);
+    if (coords.length >= 2 && tour.gpx_path) {
+      const downloadBtn = document.createElement("button");
+      downloadBtn.type = "button";
+      downloadBtn.className = "btn btn-ghost btn-sm";
+      downloadBtn.textContent = "GPX herunterladen";
+      downloadBtn.addEventListener("click", () => downloadGpx(tour, downloadBtn));
+      actionsRight.appendChild(downloadBtn);
+    }
 
     footer.appendChild(actionsLeft);
     footer.appendChild(actionsRight);
@@ -891,7 +893,7 @@
       const p = document.createElement("p");
       p.className = "muted";
       p.textContent =
-        "Lade oben rechts deine erste GPX-Datei hoch oder passe den Filter an.";
+        "Lade oben rechts deine erste GPX- oder FIT-Datei hoch oder passe den Filter an.";
 
       empty.appendChild(h);
       empty.appendChild(p);
@@ -970,14 +972,15 @@
   }
 
   // ==========================================================================
-  // UPLOAD-MODAL
+  // UPLOAD-MODAL (GPX & FIT)
   // ==========================================================================
   function resetUploadForm() {
     uploadForm.reset();
-    selectedRawGpx = null;
+    selectedFileType = null;
+    selectedRawData = null;
     selectedFileName = "";
     parsedTour = null;
-    fileNameLabel.textContent = "GPX-Datei hierher ziehen oder klicken zum Auswählen";
+    fileNameLabel.textContent = "GPX- oder FIT-Datei hierher ziehen oder klicken zum Auswählen";
     previewBox.classList.add("hidden");
     previewBox.textContent = "";
     uploadSubmitBtn.disabled = true;
@@ -999,17 +1002,33 @@
     uploadModal.classList.add("hidden");
   }
 
-  function parseSelectedFile() {
+  function parseSelectedFile(applyAutoSport = false) {
     clearMsg(uploadMsg);
-    if (!selectedRawGpx) return;
+    if (!selectedRawData || !selectedFileType) return;
 
     try {
-      parsedTour = window.StradaGPX.parseGPX(selectedRawGpx, selectedFileName, {
-        privacyTrim: uploadPrivacy.checked
-      });
+      const opts = { privacyTrim: uploadPrivacy.checked };
+
+      if (selectedFileType === "fit") {
+        if (!window.StradaFIT) {
+          throw new Error("FIT-Parser (fit.js) wurde nicht geladen.");
+        }
+        parsedTour = window.StradaFIT.parseFIT(selectedRawData, selectedFileName, opts);
+      } else {
+        parsedTour = window.StradaGPX.parseGPX(selectedRawData, selectedFileName, opts);
+      }
 
       if (!uploadTitle.value.trim()) {
         uploadTitle.value = parsedTour.title;
+      }
+
+      if (applyAutoSport && parsedTour.detected_sport) {
+        uploadSport.value = parsedTour.detected_sport;
+      }
+
+      if (uploadWeather && applyAutoSport) {
+        const hasTrack = Array.isArray(parsedTour.track_preview) && parsedTour.track_preview.length >= 2;
+        uploadWeather.checked = uploadSport.value !== "indoor" && hasTrack;
       }
 
       previewBox.textContent = "";
@@ -1023,9 +1042,20 @@
       if (parsedTour.avg_hr_bpm) {
         previewBox.appendChild(createStatItem("Ø Puls", `${parsedTour.avg_hr_bpm} bpm`));
       }
+      if (parsedTour.avg_cadence_rpm) {
+        previewBox.appendChild(createStatItem("Ø Trittfrequenz", `${parsedTour.avg_cadence_rpm} rpm`));
+      }
 
       previewBox.classList.remove("hidden");
       uploadSubmitBtn.disabled = false;
+
+      if (selectedFileType === "fit" && parsedTour.has_gps === false) {
+        showMsg(
+          uploadMsg,
+          "Hinweis: FIT-Datei ohne GPS-Strecke erkannt (Indoor-Aktivität ohne Karte/Wetter).",
+          "success"
+        );
+      }
     } catch (err) {
       parsedTour = null;
       previewBox.classList.add("hidden");
@@ -1036,28 +1066,38 @@
 
   function handleFile(file) {
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".gpx")) {
-      showMsg(uploadMsg, "Bitte eine Datei mit der Endung .gpx auswählen.", "error");
+    const lower = file.name.toLowerCase();
+    const isGpx = lower.endsWith(".gpx");
+    const isFit = lower.endsWith(".fit");
+
+    if (!isGpx && !isFit) {
+      showMsg(uploadMsg, "Bitte eine Datei mit der Endung .gpx oder .fit auswählen.", "error");
       return;
     }
     if (file.size > 15 * 1024 * 1024) {
-      showMsg(uploadMsg, "Die GPX-Datei ist größer als das Limit von 15 MB.", "error");
+      showMsg(uploadMsg, "Die Datei ist größer als das Limit von 15 MB.", "error");
       return;
     }
 
+    selectedFileType = isFit ? "fit" : "gpx";
     selectedFileName = file.name;
     fileNameLabel.textContent = `${file.name} (${(file.size / 1024).toFixed(0)} KB)`;
     uploadTitle.value = "";
 
     const reader = new FileReader();
     reader.onload = () => {
-      selectedRawGpx = String(reader.result || "");
-      parseSelectedFile();
+      selectedRawData = isFit ? reader.result : String(reader.result || "");
+      parseSelectedFile(true);
     };
     reader.onerror = () => {
       showMsg(uploadMsg, "Datei konnte nicht gelesen werden.", "error");
     };
-    reader.readAsText(file);
+
+    if (isFit) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
   }
 
   openUploadBtn.addEventListener("click", openUploadModal);
@@ -1081,12 +1121,15 @@
   });
 
   uploadPrivacy.addEventListener("change", () => {
-    if (selectedRawGpx) parseSelectedFile();
+    if (selectedRawData) parseSelectedFile(false);
   });
 
   uploadSport.addEventListener("change", () => {
     if (uploadWeather) {
-      uploadWeather.checked = uploadSport.value !== "indoor";
+      const hasTrack =
+        !parsedTour ||
+        (Array.isArray(parsedTour.track_preview) && parsedTour.track_preview.length >= 2);
+      uploadWeather.checked = uploadSport.value !== "indoor" && hasTrack;
     }
   });
 
@@ -1105,9 +1148,12 @@
     uploadSubmitBtn.disabled = true;
 
     let weatherData = null;
+    const hasTrack =
+      Array.isArray(parsedTour.track_preview) && parsedTour.track_preview.length >= 2;
     const shouldFetchWeather =
       Boolean(uploadWeather?.checked) &&
       uploadSport.value !== "indoor" &&
+      hasTrack &&
       Boolean(window.StradaWeather);
 
     if (shouldFetchWeather) {
