@@ -4,16 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>StradaLab Club – Dashboard</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.0.0">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.1.0">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="style.css?v=1.0.0">
+  <link rel="stylesheet" href="style.css?v=1.1.0">
 </head>
 <body>
 
   <!-- LOGIN-ANSICHT -->
   <main id="login-view" class="auth-shell hidden">
     <div class="card auth-card">
-      <img src="favicon.svg?v=1.0.0" alt="StradaLab Logo" class="brand-logo-lg">
+      <img src="favicon.svg?v=1.1.0" alt="StradaLab Logo" class="brand-logo-lg">
       <h1 id="login-club-name">StradaLab Club</h1>
       <p class="muted">Geschlossener Club-Bereich. Bitte mit deinen Zugangsdaten anmelden.</p>
 
@@ -42,13 +42,13 @@
       <div class="topbar-inner">
         <div class="topbar-left">
           <div class="brand">
-            <img src="favicon.svg?v=1.0.0" alt="" class="brand-logo-sm">
+            <img src="favicon.svg?v=1.1.0" alt="" class="brand-logo-sm">
             <span id="nav-club-name">StradaLab Club</span>
           </div>
           <nav class="nav-tabs" aria-label="Hauptnavigation">
             <button type="button" class="nav-tab active" data-tab="feed">Aktivitäten</button>
             <button type="button" id="nav-tab-stats" class="nav-tab" data-tab="stats">Statistik</button>
-            <button type="button" class="nav-tab" data-tab="profile">Freunde & Profil</button>
+            <button type="button" class="nav-tab" data-tab="profile">Freunde &amp; Profil</button>
             <button type="button" id="nav-tab-admin" class="nav-tab hidden" data-tab="admin">Admin</button>
           </nav>
         </div>
@@ -223,6 +223,18 @@
                   </div>
                 </div>
 
+                <div class="field">
+                  <span>E-Mail-Benachrichtigungen</span>
+                  <label class="checkbox-row" style="font-weight: 400;">
+                    <input type="checkbox" id="profile-notify-comments" checked>
+                    <span>E-Mail bei neuen Kommentaren zu meinen Touren</span>
+                  </label>
+                  <label class="checkbox-row" style="font-weight: 400;">
+                    <input type="checkbox" id="profile-notify-kudos" checked>
+                    <span>E-Mail bei neuen Kudos für meine Touren</span>
+                  </label>
+                </div>
+
                 <button type="submit" id="profile-save-btn" class="btn btn-primary">Profil speichern</button>
                 <p id="profile-msg" class="msg hidden"></p>
               </form>
@@ -367,12 +379,12 @@
 
         <label class="checkbox-row">
           <input type="checkbox" id="upload-privacy" checked>
-          <span>Privatsphäre: Start & Ziel auf Karte und in der GPX um 400 m kürzen</span>
+          <span>Privatsphäre: Start &amp; Ziel auf Karte und in der GPX um 400 m kürzen</span>
         </label>
 
         <label class="checkbox-row">
           <input type="checkbox" id="upload-weather" checked>
-          <span>Wetter automatisch für Fahrtzeit & Streckenmitte abrufen (Open-Meteo)</span>
+          <span>Wetter automatisch für Fahrtzeit &amp; Streckenmitte abrufen (Open-Meteo)</span>
         </label>
 
         <button type="submit" id="upload-submit-btn" class="btn btn-primary" disabled>Tour veröffentlichen</button>
@@ -461,13 +473,13 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="config.js?v=1.0.0"></script>
-  <script src="app.js?v=1.0.0"></script>
-  <script src="gpx.js?v=1.0.0"></script>
-  <script src="fit.js?v=1.0.0"></script>
-  <script src="weather.js?v=1.0.0"></script>
-  <script src="feed.js?v=1.0.0"></script>
-  <script src="stats.js?v=1.0.0"></script>
-  <script src="admin.js?v=1.0.0"></script>
+  <script src="config.js?v=1.1.0"></script>
+  <script src="app.js?v=1.1.0"></script>
+  <script src="gpx.js?v=1.1.0"></script>
+  <script src="fit.js?v=1.1.0"></script>
+  <script src="weather.js?v=1.1.0"></script>
+  <script src="feed.js?v=1.1.0"></script>
+  <script src="stats.js?v=1.1.0"></script>
+  <script src="admin.js?v=1.1.0"></script>
 </body>
 </html>

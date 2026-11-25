@@ -27,6 +27,8 @@
   const profileVisibility = document.getElementById("profile-visibility");
   const profileColor = document.getElementById("profile-color");
   const profilePreview = document.getElementById("profile-preview");
+  const profileNotifyComments = document.getElementById("profile-notify-comments");
+  const profileNotifyKudos = document.getElementById("profile-notify-kudos");
   const profileSaveBtn = document.getElementById("profile-save-btn");
   const profileMsg = document.getElementById("profile-msg");
 
@@ -156,7 +158,7 @@
     await sb.auth.signOut();
   });
 
-  // Profil speichern
+  // Profil speichern (inkl. Benachrichtigungs-Schalter)
   profileForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     clearMessage(profileMsg);
@@ -173,7 +175,9 @@
       .update({
         display_name: displayName,
         avatar_color: profileColor.value,
-        default_visibility: profileVisibility.value
+        default_visibility: profileVisibility.value,
+        notify_comments: profileNotifyComments ? profileNotifyComments.checked : true,
+        notify_kudos: profileNotifyKudos ? profileNotifyKudos.checked : true
       })
       .eq("id", state.user.id)
       .select()
@@ -257,6 +261,12 @@
     profileName.value = state.profile.display_name;
     profileVisibility.value = state.profile.default_visibility;
     profileColor.value = state.profile.avatar_color;
+    if (profileNotifyComments) {
+      profileNotifyComments.checked = state.profile.notify_comments !== false;
+    }
+    if (profileNotifyKudos) {
+      profileNotifyKudos.checked = state.profile.notify_kudos !== false;
+    }
     updateAvatarPreview();
   }
 
