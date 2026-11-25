@@ -78,39 +78,63 @@
         <div id="feed-list" class="feed-list"></div>
       </section>
 
-      <!-- TAB 2: PROFIL & FREIGABELISTE -->
+<!-- TAB 2: PROFIL & FREIGABELISTE -->
       <section id="tab-profile" class="tab-panel hidden">
         <div class="grid-2">
-          <div class="card">
-            <h2>Mein Profil</h2>
-            <p class="muted">So wirst du im Aktivitäten-Feed angezeigt.</p>
+          <div class="stack" style="gap: 20px;">
+            <div class="card">
+              <h2>Mein Profil</h2>
+              <p class="muted">So wirst du im Aktivitäten-Feed angezeigt.</p>
 
-            <form id="profile-form" class="stack">
-              <label class="field">
-                <span>Anzeigename</span>
-                <input type="text" id="profile-name" maxlength="60" required>
-              </label>
+              <form id="profile-form" class="stack">
+                <label class="field">
+                  <span>Anzeigename</span>
+                  <input type="text" id="profile-name" maxlength="60" required>
+                </label>
 
-              <label class="field">
-                <span>Standard-Sichtbarkeit für neue Touren</span>
-                <select id="profile-visibility">
-                  <option value="club">Ganzer Club (alle Mitglieder)</option>
-                  <option value="friends">Nur meine Freunde (Freigabeliste)</option>
-                  <option value="private">Privat (nur ich)</option>
-                </select>
-              </label>
+                <label class="field">
+                  <span>Standard-Sichtbarkeit für neue Touren</span>
+                  <select id="profile-visibility">
+                    <option value="club">Ganzer Club (alle Mitglieder)</option>
+                    <option value="friends">Nur meine Freunde (Freigabeliste)</option>
+                    <option value="private">Privat (nur ich)</option>
+                  </select>
+                </label>
 
-              <div class="field">
-                <span>Avatar-Farbe</span>
-                <div class="color-row">
-                  <input type="color" id="profile-color" value="#fc4c02">
-                  <span id="profile-preview" class="avatar"></span>
+                <div class="field">
+                  <span>Avatar-Farbe</span>
+                  <div class="color-row">
+                    <input type="color" id="profile-color" value="#fc4c02">
+                    <span id="profile-preview" class="avatar"></span>
+                  </div>
                 </div>
-              </div>
 
-              <button type="submit" id="profile-save-btn" class="btn btn-primary">Profil speichern</button>
-              <p id="profile-msg" class="msg hidden"></p>
-            </form>
+                <button type="submit" id="profile-save-btn" class="btn btn-primary">Profil speichern</button>
+                <p id="profile-msg" class="msg hidden"></p>
+              </form>
+            </div>
+
+            <div class="card">
+              <h2>Passwort ändern</h2>
+              <p class="muted">
+                Vergib hier nach dem ersten Login dein eigenes Passwort (mindestens 8 Zeichen).
+              </p>
+
+              <form id="password-form" class="stack">
+                <label class="field">
+                  <span>Neues Passwort</span>
+                  <input type="password" id="new-password" minlength="8" required autocomplete="new-password" placeholder="Mindestens 8 Zeichen">
+                </label>
+
+                <label class="field">
+                  <span>Neues Passwort wiederholen</span>
+                  <input type="password" id="confirm-password" minlength="8" required autocomplete="new-password" placeholder="Passwort bestätigen">
+                </label>
+
+                <button type="submit" id="password-save-btn" class="btn btn-primary">Passwort ändern</button>
+                <p id="password-msg" class="msg hidden"></p>
+              </form>
+            </div>
           </div>
 
           <div class="card">

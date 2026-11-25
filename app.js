@@ -27,6 +27,12 @@
   const profileSaveBtn = document.getElementById("profile-save-btn");
   const profileMsg = document.getElementById("profile-msg");
 
+  const passwordForm = document.getElementById("password-form");
+  const newPasswordInput = document.getElementById("new-password");
+  const confirmPasswordInput = document.getElementById("confirm-password");
+  const passwordSaveBtn = document.getElementById("password-save-btn");
+  const passwordMsg = document.getElementById("password-msg");
+
   const friendsList = document.getElementById("friends-list");
   const friendsMsg = document.getElementById("friends-msg");
 
@@ -173,6 +179,56 @@
     showMessage(profileMsg, "Profil gespeichert.", "success");
   });
 
+  // Passwort ändern
+  if (passwordForm) {
+    passwordForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearMessage(passwordMsg);
+
+      const newPassword = newPasswordInput.value;
+      const confirmPassword = confirmPasswordInput.value;
+
+      if (newPassword.length < 8) {
+        showMessage(
+          passwordMsg,
+          "Das Passwort muss mindestens 8 Zeichen lang sein.",
+          "error"
+        );
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        showMessage(
+          passwordMsg,
+          "Die beiden Passwörter stimmen nicht überein.",
+          "error"
+        );
+        return;
+      }
+
+      passwordSaveBtn.disabled = true;
+      passwordSaveBtn.textContent = "Speichere…";
+
+      const { error } = await sb.auth.updateUser({ password: newPassword });
+
+      passwordSaveBtn.disabled = false;
+      passwordSaveBtn.textContent = "Passwort ändern";
+
+      if (error) {
+        const msg = error.message
+          .toLowerCase()
+          .includes("different from the old password")
+          ? "Das neue Passwort muss sich vom bisherigen unterscheiden."
+          : `Passwort konnte nicht geändert werden: ${error.message}`;
+        showMessage(passwordMsg, msg, "error");
+        return;
+      }
+
+      passwordForm.reset();
+      showMessage(passwordMsg, "Passwort erfolgreich geändert.", "success");
+    });
+  }
+
   // Rendering
   function renderHeader() {
     if (!state.profile) return;
@@ -305,6 +361,9 @@
     state.profile = null;
     state.members = [];
     state.friendIds.clear();
+    clearMessage(profileMsg);
+    if (passwordForm) passwordForm.reset();
+    if (passwordMsg) clearMessage(passwordMsg);
     appView.classList.add("hidden");
     loginView.classList.remove("hidden");
     window.dispatchEvent(new CustomEvent("strada:logout"));
