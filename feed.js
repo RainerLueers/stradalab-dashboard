@@ -552,7 +552,6 @@
     if (
       isOwner &&
       !tour.weather &&
-      tour.sport_type !== "indoor" &&
       coords.length >= 2 &&
       window.StradaWeather
     ) {
@@ -1032,7 +1031,7 @@
     const defVis = window.StradaApp?.profile?.default_visibility || "club";
     uploadVisibility.value = defVis;
     if (uploadWeather) {
-      uploadWeather.checked = uploadSport.value !== "indoor";
+      uploadWeather.checked = true;
     }
   }
 
@@ -1072,7 +1071,7 @@
 
       if (uploadWeather && applyAutoSport) {
         const hasTrack = Array.isArray(parsedTour.track_preview) && parsedTour.track_preview.length >= 2;
-        uploadWeather.checked = uploadSport.value !== "indoor" && hasTrack;
+        uploadWeather.checked = hasTrack;
       }
 
       previewBox.textContent = "";
@@ -1090,7 +1089,7 @@
         previewBox.appendChild(createStatItem("Ø Trittfrequenz", `${parsedTour.avg_cadence_rpm} rpm`));
       }
 
-previewBox.classList.remove("hidden");
+      previewBox.classList.remove("hidden");
       uploadSubmitBtn.disabled = true;
       uploadSubmitBtn.textContent = "Prüfe Dupletten…";
 
@@ -1195,15 +1194,6 @@ previewBox.classList.remove("hidden");
     if (selectedRawData) parseSelectedFile(false);
   });
 
-  uploadSport.addEventListener("change", () => {
-    if (uploadWeather) {
-      const hasTrack =
-        !parsedTour ||
-        (Array.isArray(parsedTour.track_preview) && parsedTour.track_preview.length >= 2);
-      uploadWeather.checked = uploadSport.value !== "indoor" && hasTrack;
-    }
-  });
-
   uploadForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!parsedTour) return;
@@ -1237,7 +1227,6 @@ previewBox.classList.remove("hidden");
       Array.isArray(parsedTour.track_preview) && parsedTour.track_preview.length >= 2;
     const shouldFetchWeather =
       Boolean(uploadWeather?.checked) &&
-      uploadSport.value !== "indoor" &&
       hasTrack &&
       Boolean(window.StradaWeather);
 
