@@ -1231,7 +1231,6 @@ previewBox.classList.remove("hidden");
       uploadSubmitBtn.textContent = "Tour veröffentlichen";
       return;
     }
-    }
 
     let weatherData = null;
     const hasTrack =
