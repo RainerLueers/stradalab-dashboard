@@ -21,6 +21,7 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
+  overflow-x: clip;
 }
 
 .hidden {
@@ -319,17 +320,6 @@ body {
 
 .msg-success {
   color: var(--success);
-}
-
-@media (max-width: 640px) {
-  .topbar-inner {
-    height: auto;
-    padding: 10px 14px;
-    flex-wrap: wrap;
-  }
-  .user-pill span:last-child {
-    display: none;
-  }
 }
 
 /* ==========================================================================
@@ -1170,4 +1160,174 @@ body {
   text-align: right;
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+/* ==========================================================================
+   SMARTPHONE-OPTIMIERUNG (BIS 720 PX)
+   ========================================================================== */
+
+@media (max-width: 720px) {
+  .topbar-inner {
+    height: auto;
+    padding: 10px 14px 8px;
+    flex-wrap: wrap;
+    gap: 10px 12px;
+  }
+
+  /* Logo links + User/Abmelden rechts in Zeile 1, Tabs darunter in Zeile 2 */
+  .topbar-left {
+    display: contents;
+  }
+
+  .brand {
+    order: 1;
+    white-space: nowrap;
+    font-size: 1rem;
+  }
+
+  .topbar-right {
+    order: 2;
+    gap: 8px;
+  }
+
+  .topbar-right .btn-ghost {
+    padding: 5px 10px;
+    font-size: 0.82rem;
+  }
+
+  .user-pill span:last-child {
+    display: none;
+  }
+
+  .nav-tabs {
+    order: 3;
+    width: 100%;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-tab {
+    padding: 7px 9px;
+    font-size: 0.84rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .container {
+    margin: 14px auto;
+    padding: 0 12px 32px;
+  }
+
+  .card,
+  .tour-card {
+    padding: 16px;
+  }
+
+  /* Filter 50/50 + Upload-Button volle Breite */
+  .feed-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .feed-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .feed-filters select {
+    width: 100%;
+    min-width: 0;
+    font-size: 0.86rem;
+    padding: 9px 8px;
+  }
+
+  #open-upload-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .tour-header {
+    gap: 10px;
+  }
+
+  .tour-header-actions {
+    gap: 6px;
+  }
+
+  .tour-title {
+    font-size: 1.15rem;
+  }
+
+  /* Kompaktes 3-Spalten-Raster für Tour-Kennzahlen */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 8px;
+    padding: 10px 0;
+    margin-bottom: 12px;
+  }
+
+  .stats-preview {
+    padding: 10px 12px;
+  }
+
+  .stat-label {
+    font-size: 0.68rem;
+  }
+
+  .stat-value {
+    font-size: 0.98rem;
+  }
+
+  .tour-weather {
+    font-size: 0.82rem;
+    gap: 4px 10px;
+    padding: 7px 10px;
+    margin-bottom: 12px;
+  }
+
+  .tour-map {
+    height: 220px;
+  }
+
+  /* Statistik-Tab: 2x2 KPI-Karten */
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .kpi-card {
+    padding: 12px 14px;
+  }
+
+  .kpi-value {
+    font-size: 1.2rem;
+  }
+
+  .modal-backdrop {
+    padding: 12px;
+    align-items: flex-start;
+  }
+
+  .modal-card {
+    padding: 18px;
+    max-height: 94vh;
+  }
+
+  .app-footer {
+    text-align: center;
+    padding: 12px 14px 0;
+  }
 }
