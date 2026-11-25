@@ -32,11 +32,11 @@ window.StradaFIT = (() => {
 
   function escapeXml(str) {
     return String(str || "")
-      .replace(/&/g, "&")
-      .replace(/</g, "<")
-      .replace(/>/g, ">")
-      .replace(/"/g, """)
-      .replace(/'/g, "'");
+      .replace(/&/g, "&" + "amp;")
+      .replace(/</g, "&" + "lt;")
+      .replace(/>/g, "&" + "gt;")
+      .replace(/"/g, "&" + "quot;")
+      .replace(/'/g, "&" + "apos;");
   }
 
   function fitTsToMs(fitSec) {
