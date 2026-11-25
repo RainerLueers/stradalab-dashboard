@@ -59,6 +59,8 @@
   let selectedRawData = null; // string (GPX) | ArrayBuffer (FIT)
   let selectedFileName = "";
   let parsedTour = null;
+  let duplicateTour = null;
+  let dupCheckSeq = 0;
 
   // Hilfsfunktionen & Formatierung
   function getMember(userId) {
@@ -161,6 +163,44 @@
       }
     });
     activeCharts = [];
+  }
+
+  // Duplettenprüfung gegen eigene Touren in Supabase (erkennt auch GPX + FIT derselben Fahrt)
+  async function findDuplicateTour(tourData) {
+    const app = window.StradaApp;
+    if (!app?.sb || !app.user || !tourData?.started_at) return null;
+
+    const startMs = Date.parse(tourData.started_at);
+    if (!Number.isFinite(startMs)) return null;
+
+    const minIso = new Date(startMs - 5 * 60 * 1000).toISOString();
+    const maxIso = new Date(startMs + 5 * 60 * 1000).toISOString();
+
+    const { data, error } = await app.sb
+      .from("tours")
+      .select("id, title, started_at, distance_m, moving_time_s")
+      .eq("user_id", app.user.id)
+      .gte("started_at", minIso)
+      .lte("started_at", maxIso);
+
+    if (error || !Array.isArray(data) || data.length === 0) return null;
+
+    const newDist = Number(tourData.distance_m || 0);
+    const newTime = Number(tourData.moving_time_s || 0);
+
+    return (
+      data.find((existing) => {
+        const oldDist = Number(existing.distance_m || 0);
+        const oldTime = Number(existing.moving_time_s || 0);
+
+        const distTol = Math.max(1000, Math.max(newDist, oldDist) * 0.1);
+        const timeTol = Math.max(300, Math.max(newTime, oldTime) * 0.1);
+
+        const distMatch = Math.abs(newDist - oldDist) <= distTol;
+        const timeMatch = Math.abs(newTime - oldTime) <= timeTol;
+        return distMatch || timeMatch;
+      }) || null
+    );
   }
 
   // Mitglieder-Dropdown aktualisieren
@@ -980,6 +1020,8 @@
     selectedRawData = null;
     selectedFileName = "";
     parsedTour = null;
+    duplicateTour = null;
+    dupCheckSeq++;
     fileNameLabel.textContent = "GPX- oder FIT-Datei hierher ziehen oder klicken zum Auswählen";
     previewBox.classList.add("hidden");
     previewBox.textContent = "";
@@ -1004,6 +1046,7 @@
 
   function parseSelectedFile(applyAutoSport = false) {
     clearMsg(uploadMsg);
+    duplicateTour = null;
     if (!selectedRawData || !selectedFileType) return;
 
     try {
@@ -1056,6 +1099,21 @@
           "success"
         );
       }
+
+      // Asynchron auf mögliche Duplette prüfen
+      const mySeq = ++dupCheckSeq;
+      const tourSnapshot = parsedTour;
+      findDuplicateTour(tourSnapshot).then((match) => {
+        if (mySeq !== dupCheckSeq || parsedTour !== tourSnapshot) return;
+        duplicateTour = match;
+        if (match) {
+          showMsg(
+            uploadMsg,
+            `Duplette erkannt: „${match.title}“ (${formatDate(match.started_at)} · ${formatKm(match.distance_m)}) ist bereits hochgeladen.`,
+            "error"
+          );
+        }
+      });
     } catch (err) {
       parsedTour = null;
       previewBox.classList.add("hidden");
@@ -1146,6 +1204,22 @@
 
     clearMsg(uploadMsg);
     uploadSubmitBtn.disabled = true;
+    uploadSubmitBtn.textContent = "Prüfe Dupletten…";
+
+    const dup = duplicateTour || (await findDuplicateTour(parsedTour));
+    if (dup) {
+      duplicateTour = dup;
+      const msg = `Duplette erkannt: „${dup.title}“ (${formatDate(dup.started_at)} · ${formatKm(dup.distance_m)}) ist bereits vorhanden.`;
+      showMsg(uploadMsg, msg, "error");
+      const forceUpload = window.confirm(
+        `${msg}\n\nMöchtest du diese Tour trotzdem erneut hochladen?`
+      );
+      if (!forceUpload) {
+        uploadSubmitBtn.disabled = false;
+        uploadSubmitBtn.textContent = "Tour veröffentlichen";
+        return;
+      }
+    }
 
     let weatherData = null;
     const hasTrack =
