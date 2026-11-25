@@ -46,6 +46,11 @@
             <button type="button" class="nav-tab active" data-tab="feed">Aktivitäten</button>
             <button type="button" class="nav-tab" data-tab="profile">Freunde & Profil</button>
             <button type="button" id="nav-tab-admin" class="nav-tab hidden" data-tab="admin">Admin</button>
+          </nav><nav class="nav-tabs" aria-label="Hauptnavigation">
+            <button type="button" class="nav-tab active" data-tab="feed">Aktivitäten</button>
+            <button type="button" id="nav-tab-stats" class="nav-tab" data-tab="stats">Statistik</button>
+            <button type="button" class="nav-tab" data-tab="profile">Freunde & Profil</button>
+            <button type="button" id="nav-tab-admin" class="nav-tab hidden" data-tab="admin">Admin</button>
           </nav>
         </div>
 
@@ -77,6 +82,115 @@
 
         <p id="feed-status" class="muted hidden"></p>
         <div id="feed-list" class="feed-list"></div>
+      </section>
+
+<!-- TAB 1B: MONATS- & JAHRESSTATISTIK -->
+      <section id="tab-stats" class="tab-panel hidden">
+        <div class="stats-toolbar">
+          <div class="stats-toolbar-left">
+            <div class="segmented" role="group" aria-label="Zeitraum">
+              <button type="button" id="stats-mode-month" class="segmented-btn active">Monat</button>
+              <button type="button" id="stats-mode-year" class="segmented-btn">Jahr</button>
+            </div>
+            <select id="stats-month" aria-label="Monat wählen"></select>
+            <select id="stats-year" aria-label="Jahr wählen"></select>
+          </div>
+
+          <div class="stats-toolbar-right">
+            <select id="stats-sport" aria-label="Sportart filtern">
+              <option value="">Alle Sportarten</option>
+              <option value="ride">Rennrad</option>
+              <option value="gravel">Gravel</option>
+              <option value="mtb">MTB</option>
+              <option value="indoor">Indoor</option>
+              <option value="run">Laufen</option>
+              <option value="other">Sonstiges</option>
+            </select>
+          </div>
+        </div>
+
+        <p id="stats-status" class="muted hidden"></p>
+
+        <div class="kpi-grid">
+          <div class="card kpi-card">
+            <span class="stat-label">Club-Distanz</span>
+            <span id="kpi-distance" class="kpi-value">0,0 km</span>
+          </div>
+          <div class="card kpi-card">
+            <span class="stat-label">Höhenmeter</span>
+            <span id="kpi-elevation" class="kpi-value">0 m</span>
+          </div>
+          <div class="card kpi-card">
+            <span class="stat-label">Fahrten</span>
+            <span id="kpi-rides" class="kpi-value">0</span>
+          </div>
+          <div class="card kpi-card">
+            <span class="stat-label">Bewegungszeit</span>
+            <span id="kpi-time" class="kpi-value">0:00 h</span>
+          </div>
+        </div>
+
+        <div class="card stats-chart-card">
+          <div class="stats-card-header">
+            <div>
+              <h2 id="stats-chart-title">Monatsverlauf</h2>
+              <span class="muted-inline">Klick auf einen Balken öffnet den jeweiligen Monat.</span>
+            </div>
+            <select id="stats-chart-metric" aria-label="Diagramm-Kennzahl">
+              <option value="distance">Distanz (km)</option>
+              <option value="elevation">Höhenmeter (m)</option>
+              <option value="rides">Fahrten</option>
+            </select>
+          </div>
+          <div class="stats-chart-box">
+            <canvas id="stats-monthly-chart"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="stats-card-header">
+            <div>
+              <h2>Rangliste pro Mitglied – <span id="stats-period-label"></span></h2>
+              <span id="stats-active-count" class="muted-inline"></span>
+            </div>
+          </div>
+
+          <div class="stats-table-wrap">
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th class="stats-col-rank">#</th>
+                  <th>Mitglied</th>
+                  <th class="stats-col-num">
+                    <button type="button" class="stats-sort-btn" data-sort="rides">
+                      Fahrten <span class="sort-arrow"></span>
+                    </button>
+                  </th>
+                  <th class="stats-col-num">
+                    <button type="button" class="stats-sort-btn active" data-sort="distance_m">
+                      Distanz <span class="sort-arrow">↓</span>
+                    </button>
+                  </th>
+                  <th class="stats-col-num">
+                    <button type="button" class="stats-sort-btn" data-sort="elevation_gain_m">
+                      Höhenmeter <span class="sort-arrow"></span>
+                    </button>
+                  </th>
+                  <th class="stats-col-num">
+                    <button type="button" class="stats-sort-btn" data-sort="moving_time_s">
+                      Zeit <span class="sort-arrow"></span>
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="stats-table-body"></tbody>
+            </table>
+          </div>
+
+          <p class="stats-footnote">
+            Gezählt werden alle für dich sichtbaren Aktivitäten (Club, eigene und für dich freigegebene Touren).
+          </p>
+        </div>
       </section>
 
       <!-- TAB 2: PROFIL & FREIGABELISTE -->
@@ -349,6 +463,7 @@
   <script src="gpx.js"></script>
   <script src="weather.js"></script>
   <script src="feed.js"></script>
+  <script src="stats.js"></script>
   <script src="admin.js"></script>
 </body>
 </html>

@@ -17,6 +17,7 @@
   const navTabs = document.querySelectorAll(".nav-tab");
   const tabPanels = {
     feed: document.getElementById("tab-feed"),
+    stats: document.getElementById("tab-stats"),
     profile: document.getElementById("tab-profile"),
     admin: document.getElementById("tab-admin")
   };
