@@ -45,6 +45,7 @@
           <nav class="nav-tabs" aria-label="Hauptnavigation">
             <button type="button" class="nav-tab active" data-tab="feed">Aktivitäten</button>
             <button type="button" class="nav-tab" data-tab="profile">Freunde & Profil</button>
+            <button type="button" id="nav-tab-admin" class="nav-tab hidden" data-tab="admin">Admin</button>
           </nav>
         </div>
 
@@ -78,7 +79,7 @@
         <div id="feed-list" class="feed-list"></div>
       </section>
 
-<!-- TAB 2: PROFIL & FREIGABELISTE -->
+      <!-- TAB 2: PROFIL & FREIGABELISTE -->
       <section id="tab-profile" class="tab-panel hidden">
         <div class="grid-2">
           <div class="stack" style="gap: 20px;">
@@ -145,6 +146,53 @@
             </p>
             <div id="friends-list" class="friends-list"></div>
             <p id="friends-msg" class="msg hidden"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: ADMIN-BENUTZERVERWALTUNG (NUR FÜR ADMINS SICHTBAR) -->
+      <section id="tab-admin" class="tab-panel hidden">
+        <div class="admin-grid">
+          <div class="card">
+            <h2>Neues Mitglied anlegen</h2>
+            <p class="muted">
+              Der Zugang wird sofort freigeschaltet. Gib dem Mitglied E-Mail und Startpasswort weiter – es kann sein Passwort nach dem Login selbst ändern.
+            </p>
+
+            <form id="admin-create-form" class="stack">
+              <label class="field">
+                <span>Anzeigename</span>
+                <input type="text" id="admin-create-name" maxlength="60" required placeholder="z. B. Max Mustermann">
+              </label>
+
+              <label class="field">
+                <span>E-Mail-Adresse</span>
+                <input type="email" id="admin-create-email" required placeholder="mitglied@beispiel.de">
+              </label>
+
+              <label class="field">
+                <span>Startpasswort (mind. 8 Zeichen)</span>
+                <div class="input-with-btn">
+                  <input type="text" id="admin-create-password" minlength="8" required autocomplete="off" placeholder="Mindestens 8 Zeichen">
+                  <button type="button" id="admin-gen-pw-btn" class="btn btn-ghost btn-sm">Zufall</button>
+                </div>
+              </label>
+
+              <button type="submit" id="admin-create-btn" class="btn btn-primary">Mitglied anlegen</button>
+              <p id="admin-create-msg" class="msg hidden"></p>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="admin-list-header">
+              <div>
+                <h2>Clubmitglieder</h2>
+                <span id="admin-user-count" class="muted-inline"></span>
+              </div>
+              <button type="button" id="admin-refresh-btn" class="btn btn-ghost btn-sm">Aktualisieren</button>
+            </div>
+            <p id="admin-list-msg" class="msg hidden"></p>
+            <div id="admin-users-list" class="admin-users-list"></div>
           </div>
         </div>
       </section>
@@ -261,6 +309,33 @@
     </div>
   </div>
 
+  <!-- MODAL: PASSWORT ZURÜCKSETZEN (ADMIN) -->
+  <div id="admin-pw-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="admin-pw-modal-title">
+    <div class="card modal-card">
+      <div class="modal-header">
+        <h2 id="admin-pw-modal-title">Neues Passwort setzen</h2>
+        <button type="button" id="close-admin-pw-btn" class="icon-btn" aria-label="Schließen">×</button>
+      </div>
+
+      <p id="admin-pw-user-label" class="muted"></p>
+
+      <form id="admin-pw-form" class="stack">
+        <input type="hidden" id="admin-pw-user-id">
+
+        <label class="field">
+          <span>Neues Passwort (mind. 8 Zeichen)</span>
+          <div class="input-with-btn">
+            <input type="text" id="admin-pw-input" minlength="8" required autocomplete="off">
+            <button type="button" id="admin-pw-gen-btn" class="btn btn-ghost btn-sm">Zufall</button>
+          </div>
+        </label>
+
+        <button type="submit" id="admin-pw-save-btn" class="btn btn-primary">Passwort speichern</button>
+        <p id="admin-pw-msg" class="msg hidden"></p>
+      </form>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -268,5 +343,6 @@
   <script src="app.js"></script>
   <script src="gpx.js"></script>
   <script src="feed.js"></script>
+  <script src="admin.js"></script>
 </body>
 </html>

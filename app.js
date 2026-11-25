@@ -13,10 +13,12 @@
 
   const navAvatar = document.getElementById("nav-avatar");
   const navUsername = document.getElementById("nav-username");
+  const navTabAdmin = document.getElementById("nav-tab-admin");
   const navTabs = document.querySelectorAll(".nav-tab");
   const tabPanels = {
     feed: document.getElementById("tab-feed"),
-    profile: document.getElementById("tab-profile")
+    profile: document.getElementById("tab-profile"),
+    admin: document.getElementById("tab-admin")
   };
 
   const profileForm = document.getElementById("profile-form");
@@ -61,13 +63,14 @@
 
   const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
 
-  // Gemeinsamer App-Zustand für spätere Module (GPX-Upload & Feed)
+  // Gemeinsamer App-Zustand für Feed & Admin
   const state = {
     sb,
     user: null,
     profile: null,
     members: [],
-    friendIds: new Set()
+    friendIds: new Set(),
+    reloadMembers: null
   };
   window.StradaApp = state;
 
@@ -99,11 +102,16 @@
   }
 
   function switchTab(tabName) {
+    if (tabName === "admin" && !state.profile?.is_admin) {
+      tabName = "feed";
+    }
     navTabs.forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.tab === tabName);
     });
     Object.entries(tabPanels).forEach(([key, panel]) => {
-      panel.classList.toggle("hidden", key !== tabName);
+      if (panel) {
+        panel.classList.toggle("hidden", key !== tabName);
+      }
     });
   }
 
@@ -304,7 +312,7 @@
         checkbox.disabled = false;
 
         if (err) {
-          checkbox.checked = !checked; // Rollback bei Fehler
+          checkbox.checked = !checked;
           showMessage(friendsMsg, `Änderung fehlgeschlagen: ${err.message}`, "error");
           return;
         }
@@ -329,6 +337,25 @@
     });
   }
 
+  // Mitgliederliste & Freigabeliste aktualisieren (z. B. nach Admin-Änderung)
+  async function reloadMembers() {
+    if (!state.user) return;
+    const [membersRes, sharesRes] = await Promise.all([
+      sb.from("profiles").select("*").order("display_name", { ascending: true }),
+      sb.from("friend_shares").select("friend_id").eq("owner_id", state.user.id)
+    ]);
+
+    if (membersRes.error) return;
+
+    state.members = membersRes.data || [];
+    state.profile = state.members.find((m) => m.id === state.user.id) || state.profile;
+    state.friendIds = new Set((sharesRes.data || []).map((r) => r.friend_id));
+
+    renderFriendsList();
+    window.dispatchEvent(new CustomEvent("strada:profile-updated"));
+  }
+  state.reloadMembers = reloadMembers;
+
   // Daten nach Login laden
   async function loadUserData(user) {
     state.user = user;
@@ -347,6 +374,14 @@
     state.profile = state.members.find((m) => m.id === user.id) || null;
     state.friendIds = new Set((sharesRes.data || []).map((r) => r.friend_id));
 
+    const isAdmin = Boolean(state.profile?.is_admin);
+    if (navTabAdmin) {
+      navTabAdmin.classList.toggle("hidden", !isAdmin);
+    }
+    if (!isAdmin) {
+      switchTab("feed");
+    }
+
     renderHeader();
     renderProfileForm();
     renderFriendsList();
@@ -364,6 +399,8 @@
     clearMessage(profileMsg);
     if (passwordForm) passwordForm.reset();
     if (passwordMsg) clearMessage(passwordMsg);
+    if (navTabAdmin) navTabAdmin.classList.add("hidden");
+    switchTab("feed");
     appView.classList.add("hidden");
     loginView.classList.remove("hidden");
     window.dispatchEvent(new CustomEvent("strada:logout"));
@@ -377,7 +414,6 @@
     activeUserId = uid;
 
     if (session?.user) {
-      // Asynchron starten, um Auth-Lock in Supabase JS v2 zu vermeiden
       setTimeout(() => loadUserData(session.user), 0);
     } else {
       showLogin();

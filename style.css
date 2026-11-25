@@ -818,3 +818,101 @@ body {
   color: var(--accent);
   font-weight: 600;
 }
+
+/* ==========================================================================
+   ADMIN-TAB (BENUTZERVERWALTUNG)
+   ========================================================================== */
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: minmax(290px, 360px) 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.input-with-btn {
+  display: flex;
+  gap: 8px;
+}
+
+.input-with-btn input {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-list-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.admin-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.admin-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fcfcfd;
+}
+
+.admin-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.admin-user-details {
+  min-width: 0;
+}
+
+.admin-user-name-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.95rem;
+}
+
+.admin-user-email {
+  font-size: 0.85rem;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.admin-user-meta {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.admin-user-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.badge-admin {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+@media (max-width: 860px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+}
