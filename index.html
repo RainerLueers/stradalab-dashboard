@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StradaLab Club – Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- LOGIN-ANSICHT -->
+  <main id="login-view" class="auth-shell hidden">
+    <div class="card auth-card">
+      <div class="brand-badge">SL</div>
+      <h1 id="login-club-name">StradaLab Club</h1>
+      <p class="muted">Geschlossener Club-Bereich. Bitte mit deinen Zugangsdaten anmelden.</p>
+
+      <form id="login-form" class="stack">
+        <label class="field">
+          <span>E-Mail</span>
+          <input type="email" id="login-email" required autocomplete="email" placeholder="name@beispiel.de">
+        </label>
+
+        <label class="field">
+          <span>Passwort</span>
+          <input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••">
+        </label>
+
+        <button type="submit" id="login-btn" class="btn btn-primary">Anmelden</button>
+        <p id="login-error" class="msg msg-error hidden" role="alert"></p>
+      </form>
+    </div>
+  </main>
+
+  <!-- DASHBOARD-ANSICHT -->
+  <div id="app-view" class="hidden">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="topbar-left">
+          <div class="brand">
+            <span class="brand-dot"></span>
+            <span id="nav-club-name">StradaLab Club</span>
+          </div>
+          <nav class="nav-tabs" aria-label="Hauptnavigation">
+            <button type="button" class="nav-tab active" data-tab="feed">Aktivitäten</button>
+            <button type="button" class="nav-tab" data-tab="profile">Freunde & Profil</button>
+          </nav>
+        </div>
+
+        <div class="topbar-right">
+          <div class="user-pill">
+            <span id="nav-avatar" class="avatar avatar-sm"></span>
+            <span id="nav-username"></span>
+          </div>
+          <button type="button" id="logout-btn" class="btn btn-ghost">Abmelden</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- TAB 1: AKTIVITÄTEN-FEED -->
+      <section id="tab-feed" class="tab-panel">
+        <div class="feed-toolbar">
+          <div class="feed-filters">
+            <select id="filter-scope" aria-label="Ansicht filtern">
+              <option value="all">Alle sichtbaren Touren</option>
+              <option value="mine">Nur meine Touren</option>
+            </select>
+            <select id="filter-member" aria-label="Nach Mitglied filtern">
+              <option value="">Alle Mitglieder</option>
+            </select>
+          </div>
+          <button type="button" id="open-upload-btn" class="btn btn-primary">+ GPX-Tour hochladen</button>
+        </div>
+
+        <p id="feed-status" class="muted hidden"></p>
+        <div id="feed-list" class="feed-list"></div>
+      </section>
+
+      <!-- TAB 2: PROFIL & FREIGABELISTE -->
+      <section id="tab-profile" class="tab-panel hidden">
+        <div class="grid-2">
+          <div class="card">
+            <h2>Mein Profil</h2>
+            <p class="muted">So wirst du im Aktivitäten-Feed angezeigt.</p>
+
+            <form id="profile-form" class="stack">
+              <label class="field">
+                <span>Anzeigename</span>
+                <input type="text" id="profile-name" maxlength="60" required>
+              </label>
+
+              <label class="field">
+                <span>Standard-Sichtbarkeit für neue Touren</span>
+                <select id="profile-visibility">
+                  <option value="club">Ganzer Club (alle Mitglieder)</option>
+                  <option value="friends">Nur meine Freunde (Freigabeliste)</option>
+                  <option value="private">Privat (nur ich)</option>
+                </select>
+              </label>
+
+              <div class="field">
+                <span>Avatar-Farbe</span>
+                <div class="color-row">
+                  <input type="color" id="profile-color" value="#fc4c02">
+                  <span id="profile-preview" class="avatar"></span>
+                </div>
+              </div>
+
+              <button type="submit" id="profile-save-btn" class="btn btn-primary">Profil speichern</button>
+              <p id="profile-msg" class="msg hidden"></p>
+            </form>
+          </div>
+
+          <div class="card">
+            <h2>Meine Freigabeliste</h2>
+            <p class="muted">
+              Alle angehakten Clubmitglieder dürfen Touren sehen, die du mit der Sichtbarkeit
+              <strong>„Nur meine Freunde“</strong> hochlädst. Nur du kannst diese Liste einsehen.
+            </p>
+            <div id="friends-list" class="friends-list"></div>
+            <p id="friends-msg" class="msg hidden"></p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL: GPX-TOUR HOCHLADEN -->
+  <div id="upload-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="upload-modal-title">
+    <div class="card modal-card">
+      <div class="modal-header">
+        <h2 id="upload-modal-title">GPX-Tour hochladen</h2>
+        <button type="button" id="close-upload-btn" class="icon-btn" aria-label="Schließen">×</button>
+      </div>
+
+      <form id="upload-form" class="stack">
+        <div id="gpx-dropzone" class="dropzone">
+          <input type="file" id="gpx-file-input" accept=".gpx,application/gpx+xml" class="hidden">
+          <span id="gpx-file-name">GPX-Datei hierher ziehen oder klicken zum Auswählen</span>
+        </div>
+
+        <div id="gpx-preview-stats" class="stats-grid stats-preview hidden"></div>
+
+        <label class="field">
+          <span>Titel der Tour</span>
+          <input type="text" id="upload-title" maxlength="120" required placeholder="z. B. Abendrunde über Dersekow">
+        </label>
+
+        <div class="form-row-2">
+          <label class="field">
+            <span>Sportart</span>
+            <select id="upload-sport">
+              <option value="ride">Rennrad</option>
+              <option value="gravel">Gravel</option>
+              <option value="mtb">MTB</option>
+              <option value="indoor">Indoor</option>
+              <option value="run">Laufen</option>
+              <option value="other">Sonstiges</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Sichtbarkeit</span>
+            <select id="upload-visibility">
+              <option value="club">Ganzer Club</option>
+              <option value="friends">Nur meine Freunde</option>
+              <option value="private">Privat (nur ich)</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Notiz / Beschreibung (optional)</span>
+          <textarea id="upload-desc" rows="3" maxlength="1000" placeholder="Wind, Strecke, Einkehr…"></textarea>
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" id="upload-privacy" checked>
+          <span>Privatsphäre: Start & Ziel auf Karte und in der GPX um 400 m kürzen</span>
+        </label>
+
+        <button type="submit" id="upload-submit-btn" class="btn btn-primary" disabled>Tour veröffentlichen</button>
+        <p id="upload-msg" class="msg hidden"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: TOUR BEARBEITEN -->
+  <div id="edit-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+    <div class="card modal-card">
+      <div class="modal-header">
+        <h2 id="edit-modal-title">Tour bearbeiten</h2>
+        <button type="button" id="close-edit-btn" class="icon-btn" aria-label="Schließen">×</button>
+      </div>
+
+      <form id="edit-form" class="stack">
+        <input type="hidden" id="edit-tour-id">
+
+        <label class="field">
+          <span>Titel</span>
+          <input type="text" id="edit-title" maxlength="120" required>
+        </label>
+
+        <div class="form-row-2">
+          <label class="field">
+            <span>Sportart</span>
+            <select id="edit-sport">
+              <option value="ride">Rennrad</option>
+              <option value="gravel">Gravel</option>
+              <option value="mtb">MTB</option>
+              <option value="indoor">Indoor</option>
+              <option value="run">Laufen</option>
+              <option value="other">Sonstiges</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Sichtbarkeit</span>
+            <select id="edit-visibility">
+              <option value="club">Ganzer Club</option>
+              <option value="friends">Nur meine Freunde</option>
+              <option value="private">Privat (nur ich)</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Notiz / Beschreibung</span>
+          <textarea id="edit-desc" rows="3" maxlength="1000"></textarea>
+        </label>
+
+        <button type="submit" id="edit-save-btn" class="btn btn-primary">Änderungen speichern</button>
+        <p id="edit-msg" class="msg hidden"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script src="gpx.js"></script>
+  <script src="feed.js"></script>
+</body>
+</html>
