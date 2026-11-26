@@ -84,7 +84,13 @@
     return;
   }
 
-  const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+  // detectSessionInUrl deaktivieren, damit Garmin-OAuth-Callbacks (?code=&state=)
+  // nicht fälschlich von Supabase Auth abgefangen werden.
+  const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, {
+    auth: {
+      detectSessionInUrl: false
+    }
+  });
 
   // Gemeinsamer App-Zustand für Feed & Admin
   const state = {
@@ -506,53 +512,78 @@
   }
   state.reloadMembers = reloadMembers;
 
+  let activeUserId = undefined;
+
+  function showLoadFailure(message) {
+    activeUserId = undefined;
+    appView.classList.add("hidden");
+    loginView.classList.remove("hidden");
+    switchAuthMode("login");
+    showMessage(loginError, message, "error");
+  }
+
   // Daten nach Login laden
   async function loadUserData(user) {
     state.user = user;
 
-    const [membersRes, sharesRes] = await Promise.all([
-      sb.from("profiles").select("*").order("display_name", { ascending: true }),
-      sb.from("friend_shares").select("friend_id").eq("owner_id", user.id)
-    ]);
+    try {
+      const [membersRes, sharesRes] = await Promise.all([
+        sb.from("profiles").select("*").order("display_name", { ascending: true }),
+        sb.from("friend_shares").select("friend_id").eq("owner_id", user.id)
+      ]);
 
-    if (membersRes.error) {
-      console.error("Profile-Fehler:", membersRes.error);
-      return;
-    }
+      if (membersRes.error) {
+        console.error("Profile-Fehler:", membersRes.error);
+        showLoadFailure(
+          "Profildaten konnten nicht geladen werden. Bitte Seite neu laden oder erneut anmelden."
+        );
+        return;
+      }
 
-    const allProfiles = membersRes.data || [];
-    state.profile = allProfiles.find((m) => m.id === user.id) || null;
+      const allProfiles = membersRes.data || [];
+      state.profile = allProfiles.find((m) => m.id === user.id) || null;
 
-    // Zusätzliche Absicherung: unbestätigte Profile sofort wieder abmelden
-    if (state.profile && state.profile.is_approved === false) {
-      await sb.auth.signOut();
-      switchAuthMode("login");
-      showMessage(
-        loginError,
-        "Dein Zugang wurde noch nicht freigeschaltet. Du erhältst eine E-Mail, sobald ein Admin deine Anfrage bestätigt.",
-        "error"
+      if (!state.profile) {
+        await sb.auth.signOut();
+        showLoadFailure(
+          "Dein Benutzerprofil wurde nicht gefunden. Bitte wende dich an den Admin."
+        );
+        return;
+      }
+
+      // Zusätzliche Absicherung: unbestätigte Profile sofort wieder abmelden
+      if (state.profile.is_approved === false) {
+        await sb.auth.signOut();
+        showLoadFailure(
+          "Dein Zugang wurde noch nicht freigeschaltet. Du erhältst eine E-Mail, sobald ein Admin deine Anfrage bestätigt."
+        );
+        return;
+      }
+
+      state.members = allProfiles.filter((m) => m.is_approved !== false);
+      state.friendIds = new Set((sharesRes.data || []).map((r) => r.friend_id));
+
+      const isAdmin = Boolean(state.profile.is_admin);
+      if (navTabAdmin) {
+        navTabAdmin.classList.toggle("hidden", !isAdmin);
+      }
+      if (!isAdmin) {
+        switchTab("feed");
+      }
+
+      renderHeader();
+      renderProfileForm();
+      renderFriendsList();
+
+      loginView.classList.add("hidden");
+      appView.classList.remove("hidden");
+      window.dispatchEvent(new CustomEvent("strada:ready"));
+    } catch (err) {
+      console.error("Unerwarteter Ladefehler:", err);
+      showLoadFailure(
+        "Verbindung zum Server fehlgeschlagen. Bitte prüfe deine Internetverbindung und lade die Seite neu."
       );
-      return;
     }
-
-    state.members = allProfiles.filter((m) => m.is_approved !== false);
-    state.friendIds = new Set((sharesRes.data || []).map((r) => r.friend_id));
-
-    const isAdmin = Boolean(state.profile?.is_admin);
-    if (navTabAdmin) {
-      navTabAdmin.classList.toggle("hidden", !isAdmin);
-    }
-    if (!isAdmin) {
-      switchTab("feed");
-    }
-
-    renderHeader();
-    renderProfileForm();
-    renderFriendsList();
-
-    loginView.classList.add("hidden");
-    appView.classList.remove("hidden");
-    window.dispatchEvent(new CustomEvent("strada:ready"));
   }
 
   function showLogin() {
@@ -571,7 +602,6 @@
   }
 
   // Auth-Status überwachen
-  let activeUserId = undefined;
   sb.auth.onAuthStateChange((_event, session) => {
     const uid = session?.user?.id || null;
     if (uid === activeUserId) return;

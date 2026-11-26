@@ -1,14 +1,22 @@
 window.StradaWeather = (() => {
   const COMPASS_DE = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"];
 
+  function toFiniteNumber(val) {
+    if (val === null || val === undefined || val === "") return null;
+    const n = Number(val);
+    return Number.isFinite(n) ? n : null;
+  }
+
   function degToCompass(deg) {
-    if (!Number.isFinite(deg)) return "";
-    const idx = Math.round(((deg % 360) + 360) % 360 / 45) % 8;
+    const n = toFiniteNumber(deg);
+    if (n === null) return "";
+    const idx = Math.round(((n % 360) + 360) % 360 / 45) % 8;
     return COMPASS_DE[idx];
   }
 
   function decodeWmo(code) {
-    const c = Number(code);
+    const c = toFiniteNumber(code);
+    if (c === null) return { icon: "🌡️", label: "Wetter" };
     if (c === 0) return { icon: "☀️", label: "Klar" };
     if (c === 1) return { icon: "🌤️", label: "Überwiegend klar" };
     if (c === 2) return { icon: "⛅", label: "Leicht bewölkt" };
@@ -27,9 +35,9 @@ window.StradaWeather = (() => {
   function getMidpoint(coords) {
     if (!Array.isArray(coords) || coords.length === 0) return null;
     const mid = coords[Math.floor(coords.length / 2)];
-    const lat = Number(mid?.[0]);
-    const lon = Number(mid?.[1]);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    const lat = toFiniteNumber(mid?.[0]);
+    const lon = toFiniteNumber(mid?.[1]);
+    if (lat === null || lon === null) return null;
     // Auf 2 Nachkommastellen (~1 km) runden – schützt genaue Adressen
     return {
       lat: Math.round(lat * 100) / 100,
@@ -56,27 +64,27 @@ window.StradaWeather = (() => {
     if (!h || !Array.isArray(h.time) || h.time.length === 0) return null;
 
     let idx = h.time.findIndex((t) => {
-      const hour = Number(String(t).slice(11, 13));
+      const hour = toFiniteNumber(String(t).slice(11, 13));
       return hour === targetHourUtc;
     });
     if (idx < 0) idx = Math.min(targetHourUtc, h.time.length - 1);
 
-    const temp = Number(h.temperature_2m?.[idx]);
-    const wind = Number(h.wind_speed_10m?.[idx]);
-    const windDir = Number(h.wind_direction_10m?.[idx]);
-    const precip = Number(h.precipitation?.[idx]);
-    const code = Number(h.weather_code?.[idx]);
+    const temp = toFiniteNumber(h.temperature_2m?.[idx]);
+    if (temp === null) return null;
 
-    if (!Number.isFinite(temp)) return null;
+    const wind = toFiniteNumber(h.wind_speed_10m?.[idx]);
+    const windDir = toFiniteNumber(h.wind_direction_10m?.[idx]);
+    const precip = toFiniteNumber(h.precipitation?.[idx]);
+    const code = toFiniteNumber(h.weather_code?.[idx]);
 
     const wmo = decodeWmo(code);
     return {
       temp_c: Math.round(temp * 10) / 10,
-      wind_kmh: Number.isFinite(wind) ? Math.round(wind) : null,
-      wind_dir_deg: Number.isFinite(windDir) ? Math.round(windDir) : null,
-      wind_dir: Number.isFinite(windDir) ? degToCompass(windDir) : "",
-      precip_mm: Number.isFinite(precip) ? Math.round(precip * 10) / 10 : 0,
-      code: Number.isFinite(code) ? code : null,
+      wind_kmh: wind !== null ? Math.round(wind) : null,
+      wind_dir_deg: windDir !== null ? Math.round(windDir) : null,
+      wind_dir: windDir !== null ? degToCompass(windDir) : "",
+      precip_mm: precip !== null ? Math.round(precip * 10) / 10 : 0,
+      code: code !== null ? code : null,
       label: wmo.label,
       fetched_at: new Date().toISOString()
     };
@@ -119,7 +127,8 @@ window.StradaWeather = (() => {
   }
 
   function createWeatherElement(weather) {
-    if (!weather || !Number.isFinite(Number(weather.temp_c))) return null;
+    const tempC = toFiniteNumber(weather?.temp_c);
+    if (tempC === null) return null;
 
     const wmo = decodeWmo(weather.code);
     const wrap = document.createElement("div");
@@ -132,21 +141,23 @@ window.StradaWeather = (() => {
 
     const tempSpan = document.createElement("span");
     tempSpan.className = "weather-chip";
-    tempSpan.textContent = `${Number(weather.temp_c).toFixed(1).replace(".", ",")} °C`;
+    tempSpan.textContent = `${tempC.toFixed(1).replace(".", ",")} °C`;
     wrap.appendChild(tempSpan);
 
-    if (weather.wind_kmh !== null && weather.wind_kmh !== undefined) {
+    const windKmh = toFiniteNumber(weather.wind_kmh);
+    if (windKmh !== null) {
       const dir = weather.wind_dir || degToCompass(weather.wind_dir_deg);
       const windSpan = document.createElement("span");
       windSpan.className = "weather-chip";
-      windSpan.textContent = `Wind ${Math.round(weather.wind_kmh)} km/h${dir ? " " + dir : ""}`;
+      windSpan.textContent = `Wind ${Math.round(windKmh)} km/h${dir ? " " + dir : ""}`;
       wrap.appendChild(windSpan);
     }
 
-    if (Number(weather.precip_mm) >= 0.1) {
+    const precipMm = toFiniteNumber(weather.precip_mm);
+    if (precipMm !== null && precipMm >= 0.1) {
       const rainSpan = document.createElement("span");
       rainSpan.className = "weather-chip";
-      rainSpan.textContent = `Niederschlag ${Number(weather.precip_mm).toFixed(1).replace(".", ",")} mm/h`;
+      rainSpan.textContent = `Niederschlag ${precipMm.toFixed(1).replace(".", ",")} mm/h`;
       wrap.appendChild(rainSpan);
     }
 

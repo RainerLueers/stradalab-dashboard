@@ -1,5 +1,6 @@
 (() => {
   const COMMENT_MAX_LEN = 280;
+  const PAGE_SIZE = 12;
 
   const SPORT_LABELS = {
     ride: "Rennrad",
@@ -52,9 +53,33 @@
   const editSaveBtn = document.getElementById("edit-save-btn");
   const editMsg = document.getElementById("edit-msg");
 
+  // Dynamischer "Weitere Touren laden"-Button unterhalb der Feed-Liste
+  const loadMoreWrap = document.createElement("div");
+  loadMoreWrap.className = "hidden";
+  loadMoreWrap.style.textAlign = "center";
+  loadMoreWrap.style.marginTop = "16px";
+
+  const loadMoreBtn = document.createElement("button");
+  loadMoreBtn.type = "button";
+  loadMoreBtn.className = "btn btn-ghost";
+  loadMoreBtn.textContent = "Weitere Touren laden";
+  loadMoreWrap.appendChild(loadMoreBtn);
+
+  if (feedList && feedList.parentNode) {
+    feedList.parentNode.insertBefore(loadMoreWrap, feedList.nextSibling);
+  }
+
   let allTours = [];
+  let currentOffset = 0;
+  let hasMoreTours = false;
+  let isLoadingTours = false;
+  let loadToursSeq = 0;
+
   let activeMaps = [];
   let activeCharts = [];
+  let mapObserver = null;
+  const pendingMaps = new WeakMap();
+
   let selectedFileType = null; // "gpx" | "fit"
   let selectedRawData = null; // string (GPX) | ArrayBuffer (FIT)
   let selectedFileName = "";
@@ -81,6 +106,20 @@
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
     return clean.slice(0, 2).toUpperCase();
+  }
+
+  function getDeviceAttribution(tour) {
+    const raw = String(tour?.device_name || "").trim();
+    if (raw) {
+      if (tour?.source === "garmin" && !raw.toLowerCase().startsWith("garmin")) {
+        return `Garmin ${raw}`;
+      }
+      return raw;
+    }
+    if (tour?.source === "garmin") {
+      return "Garmin";
+    }
+    return "";
   }
 
   function formatKm(meters) {
@@ -167,6 +206,15 @@
   }
 
   function destroyVisuals() {
+    if (mapObserver) {
+      try {
+        mapObserver.disconnect();
+      } catch (_e) {
+        // ignorieren
+      }
+      mapObserver = null;
+    }
+
     activeMaps.forEach((m) => {
       try {
         m.remove();
@@ -186,7 +234,46 @@
     activeCharts = [];
   }
 
-  // Duplettenprüfung gegen eigene Touren in Supabase (erkennt auch GPX + FIT derselben Fahrt)
+  function ensureMapObserver() {
+    if (mapObserver || typeof window.IntersectionObserver !== "function") return;
+    mapObserver = new window.IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const el = entry.target;
+          const coords = pendingMaps.get(el);
+          if (coords) {
+            pendingMaps.delete(el);
+            mapObserver.unobserve(el);
+            initLeafletMap(el, coords);
+          }
+        });
+      },
+      { rootMargin: "250px 0px" }
+    );
+  }
+
+  function scheduleMapInit(mapEl, coords) {
+    if (!mapEl || !Array.isArray(coords) || coords.length < 2) return;
+    ensureMapObserver();
+    if (mapObserver) {
+      pendingMaps.set(mapEl, coords);
+      mapObserver.observe(mapEl);
+    } else {
+      initLeafletMap(mapEl, coords);
+    }
+  }
+
+  function updateLoadMoreUI() {
+    loadMoreWrap.classList.toggle("hidden", !hasMoreTours);
+    loadMoreBtn.disabled = isLoadingTours;
+    loadMoreBtn.textContent = isLoadingTours
+      ? "Lade weitere Touren…"
+      : "Weitere Touren laden";
+  }
+
+  // Duplettenprüfung gegen eigene Touren in Supabase (erkennt GPX + FIT derselben Fahrt,
+  // sperrt aber keine geplanten GPX-Dateien ohne Zeitstempel fälschlich)
   async function findDuplicateTour(tourData) {
     const app = window.StradaApp;
     if (!app?.sb || !app.user || !tourData?.started_at) return null;
@@ -214,12 +301,19 @@
         const oldDist = Number(existing.distance_m || 0);
         const oldTime = Number(existing.moving_time_s || 0);
 
+        const hasDist = newDist > 0 && oldDist > 0;
+        const hasTime = newTime > 0 && oldTime > 0;
+
         const distTol = Math.max(1000, Math.max(newDist, oldDist) * 0.1);
         const timeTol = Math.max(300, Math.max(newTime, oldTime) * 0.1);
 
-        const distMatch = Math.abs(newDist - oldDist) <= distTol;
-        const timeMatch = Math.abs(newTime - oldTime) <= timeTol;
-        return distMatch || timeMatch;
+        const distMatch = hasDist && Math.abs(newDist - oldDist) <= distTol;
+        const timeMatch = hasTime && Math.abs(newTime - oldTime) <= timeTol;
+
+        if (hasDist && hasTime) return distMatch && timeMatch;
+        if (hasDist) return distMatch;
+        if (hasTime) return timeMatch;
+        return false;
       }) || null
     );
   }
@@ -248,29 +342,69 @@
     }
   }
 
-  // Touren inkl. Kudos, Kommentaren und Wetter laden
-  async function loadTours() {
+  // Touren serverseitig gefiltert und seitenweise (12 Stück pro Seite) laden
+  async function loadTours(reset = true) {
     const app = window.StradaApp;
     if (!app || !app.user) return;
 
-    feedStatus.textContent = "Lade Touren…";
-    feedStatus.classList.remove("hidden");
+    const mySeq = ++loadToursSeq;
+    isLoadingTours = true;
 
-    const { data, error } = await app.sb
-      .from("tours")
-      .select(
-        "*, author:profiles!tours_user_id_fkey(id, display_name, avatar_color), kudos(user_id, created_at), comments(id, user_id, body, created_at)"
-      )
-      .order("started_at", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(50);
+    if (reset) {
+      currentOffset = 0;
+      hasMoreTours = false;
+      feedStatus.textContent = "Lade Touren…";
+      feedStatus.classList.remove("hidden");
+    }
+    updateLoadMoreUI();
 
-    if (error) {
-      feedStatus.textContent = `Fehler beim Laden der Touren: ${error.message}`;
+    const scope = filterScope.value;
+    const memberId = filterMember.value;
+
+    // Kombination "Nur meine Touren" + anderes Mitglied ergibt sofort 0 Treffer
+    if (scope === "mine" && memberId && memberId !== app.user.id) {
+      isLoadingTours = false;
+      allTours = [];
+      hasMoreTours = false;
+      feedStatus.classList.add("hidden");
+      renderFeed();
+      updateLoadMoreUI();
       return;
     }
 
-    allTours = (data || []).map((t) => ({
+    let query = app.sb
+      .from("tours")
+      .select(
+        "*, author:profiles!tours_user_id_fkey(id, display_name, avatar_color), kudos(user_id, created_at), comments(id, user_id, body, created_at)"
+      );
+
+    if (scope === "mine") {
+      query = query.eq("user_id", app.user.id);
+    } else if (memberId) {
+      query = query.eq("user_id", memberId);
+    }
+
+    const from = currentOffset;
+    const to = currentOffset + PAGE_SIZE; // PAGE_SIZE + 1 Zeilen abfragen zur Erkennung weiterer Seiten
+
+    const { data, error } = await query
+      .order("started_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    if (mySeq !== loadToursSeq) return;
+    isLoadingTours = false;
+
+    if (error) {
+      feedStatus.textContent = `Fehler beim Laden der Touren: ${error.message}`;
+      feedStatus.classList.remove("hidden");
+      updateLoadMoreUI();
+      return;
+    }
+
+    const rows = data || [];
+    hasMoreTours = rows.length > PAGE_SIZE;
+    const pageRows = (hasMoreTours ? rows.slice(0, PAGE_SIZE) : rows).map((t) => ({
       ...t,
       kudos: Array.isArray(t.kudos) ? t.kudos : [],
       comments: (Array.isArray(t.comments) ? t.comments : []).sort(
@@ -278,20 +412,18 @@
       )
     }));
 
+    currentOffset += pageRows.length;
     feedStatus.classList.add("hidden");
-    renderFeed();
-  }
 
-  function getFilteredTours() {
-    const app = window.StradaApp;
-    const scope = filterScope.value;
-    const memberId = filterMember.value;
+    if (reset) {
+      allTours = pageRows;
+      renderFeed();
+    } else {
+      allTours = allTours.concat(pageRows);
+      appendToursToFeed(pageRows);
+    }
 
-    return allTours.filter((t) => {
-      if (scope === "mine" && t.user_id !== app.user.id) return false;
-      if (memberId && t.user_id !== memberId) return false;
-      return true;
-    });
+    updateLoadMoreUI();
   }
 
   function createStatItem(label, value) {
@@ -343,7 +475,15 @@
 
     const subEl = document.createElement("div");
     subEl.className = "tour-meta";
-    subEl.textContent = `${formatDate(tour.started_at)} · ${SPORT_LABELS[tour.sport_type] || tour.sport_type}`;
+    const metaParts = [
+      formatDate(tour.started_at),
+      SPORT_LABELS[tour.sport_type] || tour.sport_type
+    ];
+    const deviceLabel = getDeviceAttribution(tour);
+    if (deviceLabel) {
+      metaParts.push(deviceLabel);
+    }
+    subEl.textContent = metaParts.join(" · ");
 
     meta.appendChild(nameEl);
     meta.appendChild(subEl);
@@ -430,7 +570,7 @@
     renderWeatherSlot();
     card.appendChild(weatherSlot);
 
-    // 4. Leaflet-Karte
+    // 4. Leaflet-Karte (Lazy-Initialisierung beim Reinscrollen)
     const coords = Array.isArray(tour.track_preview) ? tour.track_preview : [];
     let mapEl = null;
     if (coords.length >= 2) {
@@ -946,12 +1086,24 @@
     activeCharts.push(chart);
   }
 
+  function appendToursToFeed(tours) {
+    tours.forEach((tour) => {
+      const { card, mapEl, coords, eleCanvas, eleProfile } = renderTourCard(tour);
+      feedList.appendChild(card);
+      if (mapEl && coords.length >= 2) {
+        scheduleMapInit(mapEl, coords);
+      }
+      if (eleCanvas && eleProfile.length >= 2) {
+        initElevationChart(eleCanvas, eleProfile);
+      }
+    });
+  }
+
   function renderFeed() {
     destroyVisuals();
     feedList.textContent = "";
 
-    const tours = getFilteredTours();
-    if (tours.length === 0) {
+    if (allTours.length === 0) {
       const empty = document.createElement("div");
       empty.className = "card empty-state";
 
@@ -961,7 +1113,7 @@
       const p = document.createElement("p");
       p.className = "muted";
       p.textContent =
-        "Lade oben rechts deine erste GPX- oder FIT-Datei hoch oder passe den Filter an.";
+        "Lade oben rechts deine erste GPX- oder FIT-Datei hoch, verbinde Garmin Connect unter „Freunde & Profil“ oder passe den Filter an.";
 
       empty.appendChild(h);
       empty.appendChild(p);
@@ -969,16 +1121,7 @@
       return;
     }
 
-    tours.forEach((tour) => {
-      const { card, mapEl, coords, eleCanvas, eleProfile } = renderTourCard(tour);
-      feedList.appendChild(card);
-      if (mapEl && coords.length >= 2) {
-        initLeafletMap(mapEl, coords);
-      }
-      if (eleCanvas && eleProfile.length >= 2) {
-        initElevationChart(eleCanvas, eleProfile);
-      }
-    });
+    appendToursToFeed(allTours);
   }
 
   // Privater GPX-Download über zeitlich begrenzte signierte URL
@@ -1036,7 +1179,9 @@
     }
 
     allTours = allTours.filter((t) => t.id !== tour.id);
+    currentOffset = Math.max(0, currentOffset - 1);
     renderFeed();
+    updateLoadMoreUI();
   }
 
   // ==========================================================================
@@ -1328,7 +1473,8 @@
       elevation_profile: parsedTour.elevation_profile,
       gpx_path: gpxPath,
       privacy_trimmed: parsedTour.privacy_trimmed,
-      weather: weatherData
+      weather: weatherData,
+      device_name: parsedTour.device_name || null
     });
 
     if (dbErr) {
@@ -1342,7 +1488,7 @@
     uploadSubmitBtn.disabled = false;
     uploadSubmitBtn.textContent = "Tour veröffentlichen";
     closeUploadModal();
-    await loadTours();
+    await loadTours(true);
   });
 
   // ==========================================================================
@@ -1397,12 +1543,18 @@
     }
 
     closeEditModal();
-    await loadTours();
+    await loadTours(true);
   });
 
-  // Filter & Tab-Wechsel
-  filterScope.addEventListener("change", renderFeed);
-  filterMember.addEventListener("change", renderFeed);
+  // Filter, Pagination & Tab-Wechsel
+  filterScope.addEventListener("change", () => loadTours(true));
+  filterMember.addEventListener("change", () => loadTours(true));
+
+  loadMoreBtn.addEventListener("click", () => {
+    if (!isLoadingTours && hasMoreTours) {
+      loadTours(false);
+    }
+  });
 
   document.querySelectorAll('.nav-tab[data-tab="feed"]').forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -1413,18 +1565,23 @@
   // Events aus app.js abonnieren
   window.addEventListener("strada:ready", () => {
     populateMemberFilter();
-    loadTours();
+    loadTours(true);
   });
 
   window.addEventListener("strada:profile-updated", () => {
     populateMemberFilter();
-    loadTours();
+    loadTours(true);
   });
 
   window.addEventListener("strada:logout", () => {
+    loadToursSeq++;
+    isLoadingTours = false;
+    hasMoreTours = false;
+    currentOffset = 0;
     destroyVisuals();
     allTours = [];
     feedList.textContent = "";
+    updateLoadMoreUI();
     closeUploadModal();
     closeEditModal();
   });

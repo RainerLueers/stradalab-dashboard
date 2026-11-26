@@ -43,6 +43,7 @@
   let loadedYear = null;
   let monthlyChart = null;
   let yearsInitialized = false;
+  let statsLoadSeq = 0;
 
   // Formatierungshelfer
   function getMember(userId) {
@@ -119,6 +120,8 @@
         .order("started_at", { ascending: true })
         .limit(1);
 
+      if (!window.StradaApp?.user) return;
+
       if (data && data.length > 0 && data[0].started_at) {
         const earliest = new Date(data[0].started_at).getFullYear();
         if (Number.isFinite(earliest) && earliest >= 2000 && earliest < minYear) {
@@ -164,6 +167,7 @@
     const app = window.StradaApp;
     if (!app?.sb || !app.user) return;
 
+    const mySeq = ++statsLoadSeq;
     statsStatus.textContent = `Lade Statistik für ${year}…`;
     statsStatus.classList.remove("hidden");
 
@@ -184,6 +188,8 @@
         .order("started_at", { ascending: true })
         .range(from, from + pageSize - 1);
 
+      if (mySeq !== statsLoadSeq) return;
+
       if (error) {
         statsStatus.textContent = `Fehler beim Laden der Statistik: ${error.message}`;
         return;
@@ -194,6 +200,8 @@
       if (data.length < pageSize) break;
       from += pageSize;
     }
+
+    if (mySeq !== statsLoadSeq) return;
 
     yearTours = allRows.filter((t) => {
       const d = new Date(t.started_at);
@@ -540,6 +548,7 @@
   });
 
   window.addEventListener("strada:logout", () => {
+    statsLoadSeq++;
     destroyChart();
     yearTours = [];
     loadedYear = null;

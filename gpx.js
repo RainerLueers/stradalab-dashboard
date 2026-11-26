@@ -82,6 +82,15 @@ window.StradaGPX = (() => {
     return result;
   }
 
+  function removeXmlNodesByTag(xmlDoc, tagName) {
+    const nodes = Array.from(xmlDoc.getElementsByTagName(tagName));
+    for (const n of nodes) {
+      if (n.parentNode) {
+        n.parentNode.removeChild(n);
+      }
+    }
+  }
+
   function parseGPX(xmlText, fileName, options = {}) {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlText, "application/xml");
@@ -205,20 +214,28 @@ window.StradaGPX = (() => {
     }
 
     // Privatsphäre-Schnitt: Start & Ziel um 400 m für Karte und gespeicherte GPX kürzen
-    // (Gesamtdistanz & Höhenmeter bleiben unverändert wie bei Strava)
+    // (inkl. Entfernen von <bounds> und <wpt>, damit keine Start-/Heimkoordinaten im XML bleiben)
     let visiblePoints = points;
     let privacyTrimmed = false;
 
     if (options.privacyTrim && cumDist > PRIVACY_TRIM_M * 3) {
       const trimmed = [];
+      const toRemove = [];
       for (const p of points) {
         if (p.cumDist >= PRIVACY_TRIM_M && p.cumDist <= cumDist - PRIVACY_TRIM_M) {
           trimmed.push(p);
-        } else if (p.node && p.node.parentNode) {
-          p.node.parentNode.removeChild(p.node);
+        } else {
+          toRemove.push(p);
         }
       }
       if (trimmed.length >= 2) {
+        for (const p of toRemove) {
+          if (p.node && p.node.parentNode) {
+            p.node.parentNode.removeChild(p.node);
+          }
+        }
+        removeXmlNodesByTag(xmlDoc, "bounds");
+        removeXmlNodesByTag(xmlDoc, "wpt");
         visiblePoints = trimmed;
         privacyTrimmed = true;
       }
@@ -230,7 +247,7 @@ window.StradaGPX = (() => {
       Math.round(p.lon * 1e5) / 1e5
     ]);
 
-    // Vereinfachtes Höhenprofil für Schritt 3 (max. 120 Punkte)
+    // Vereinfachtes Höhenprofil (max. 120 Punkte)
     const baseDist = visiblePoints[0].cumDist;
     const elePts = visiblePoints.filter((p) => p.ele !== null);
     const elevationProfile =
