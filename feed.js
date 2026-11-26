@@ -105,6 +105,27 @@
     return `${Number(kmh).toFixed(1).replace(".", ",")} km/h`;
   }
 
+  function formatPace(distanceM, movingTimeS, avgSpeedKmh) {
+    let secPerKm = null;
+    const distKm = Number(distanceM || 0) / 1000;
+    const timeS = Number(movingTimeS || 0);
+
+    if (distKm > 0 && timeS > 0) {
+      secPerKm = timeS / distKm;
+    } else if (avgSpeedKmh && Number(avgSpeedKmh) > 0) {
+      secPerKm = 3600 / Number(avgSpeedKmh);
+    }
+
+    if (!Number.isFinite(secPerKm) || secPerKm <= 0 || secPerKm > 3600) {
+      return "–";
+    }
+
+    const totalSec = Math.round(secPerKm);
+    const min = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    return `${min}:${String(sec).padStart(2, "0")} min/km`;
+  }
+
   function formatDate(iso) {
     if (!iso) return "";
     const d = new Date(iso);
@@ -296,6 +317,7 @@
   function renderTourCard(tour) {
     const app = window.StradaApp;
     const isOwner = tour.user_id === app.user.id;
+    const isRun = tour.sport_type === "run";
     const authorName = tour.author?.display_name || getMember(tour.user_id).display_name;
     const authorColor = tour.author?.avatar_color || getMember(tour.user_id).avatar_color;
 
@@ -376,7 +398,14 @@
     statsRow.appendChild(createStatItem("Distanz", formatKm(tour.distance_m)));
     statsRow.appendChild(createStatItem("Höhenmeter", formatHm(tour.elevation_gain_m)));
     statsRow.appendChild(createStatItem("Bewegungszeit", formatDuration(tour.moving_time_s)));
-    statsRow.appendChild(createStatItem("Ø Tempo", formatSpeed(tour.avg_speed_kmh)));
+
+    if (isRun) {
+      statsRow.appendChild(
+        createStatItem("Ø Pace", formatPace(tour.distance_m, tour.moving_time_s, tour.avg_speed_kmh))
+      );
+    } else {
+      statsRow.appendChild(createStatItem("Ø Tempo", formatSpeed(tour.avg_speed_kmh)));
+    }
 
     if (tour.avg_power_w) {
       statsRow.appendChild(createStatItem("Ø Leistung", `${tour.avg_power_w} W`));
@@ -384,7 +413,7 @@
     if (tour.avg_hr_bpm) {
       statsRow.appendChild(createStatItem("Ø Puls", `${tour.avg_hr_bpm} bpm`));
     }
-    if (tour.avg_cadence_rpm) {
+    if (tour.avg_cadence_rpm && !isRun) {
       statsRow.appendChild(createStatItem("Ø Trittfrequenz", `${tour.avg_cadence_rpm} rpm`));
     }
     card.appendChild(statsRow);
@@ -1013,6 +1042,37 @@
   // ==========================================================================
   // UPLOAD-MODAL (GPX & FIT)
   // ==========================================================================
+  function renderUploadPreview() {
+    if (!parsedTour) return;
+    const isRun = uploadSport.value === "run";
+
+    previewBox.textContent = "";
+    previewBox.appendChild(createStatItem("Distanz", formatKm(parsedTour.distance_m)));
+    previewBox.appendChild(createStatItem("Höhenmeter", formatHm(parsedTour.elevation_gain_m)));
+    previewBox.appendChild(createStatItem("Zeit", formatDuration(parsedTour.moving_time_s)));
+
+    if (isRun) {
+      previewBox.appendChild(
+        createStatItem(
+          "Ø Pace",
+          formatPace(parsedTour.distance_m, parsedTour.moving_time_s, parsedTour.avg_speed_kmh)
+        )
+      );
+    } else {
+      previewBox.appendChild(createStatItem("Ø Tempo", formatSpeed(parsedTour.avg_speed_kmh)));
+    }
+
+    if (parsedTour.avg_power_w) {
+      previewBox.appendChild(createStatItem("Ø Leistung", `${parsedTour.avg_power_w} W`));
+    }
+    if (parsedTour.avg_hr_bpm) {
+      previewBox.appendChild(createStatItem("Ø Puls", `${parsedTour.avg_hr_bpm} bpm`));
+    }
+    if (parsedTour.avg_cadence_rpm && !isRun) {
+      previewBox.appendChild(createStatItem("Ø Trittfrequenz", `${parsedTour.avg_cadence_rpm} rpm`));
+    }
+  }
+
   function resetUploadForm() {
     uploadForm.reset();
     selectedFileType = null;
@@ -1074,21 +1134,7 @@
         uploadWeather.checked = hasTrack;
       }
 
-      previewBox.textContent = "";
-      previewBox.appendChild(createStatItem("Distanz", formatKm(parsedTour.distance_m)));
-      previewBox.appendChild(createStatItem("Höhenmeter", formatHm(parsedTour.elevation_gain_m)));
-      previewBox.appendChild(createStatItem("Zeit", formatDuration(parsedTour.moving_time_s)));
-      previewBox.appendChild(createStatItem("Ø Tempo", formatSpeed(parsedTour.avg_speed_kmh)));
-      if (parsedTour.avg_power_w) {
-        previewBox.appendChild(createStatItem("Ø Leistung", `${parsedTour.avg_power_w} W`));
-      }
-      if (parsedTour.avg_hr_bpm) {
-        previewBox.appendChild(createStatItem("Ø Puls", `${parsedTour.avg_hr_bpm} bpm`));
-      }
-      if (parsedTour.avg_cadence_rpm) {
-        previewBox.appendChild(createStatItem("Ø Trittfrequenz", `${parsedTour.avg_cadence_rpm} rpm`));
-      }
-
+      renderUploadPreview();
       previewBox.classList.remove("hidden");
       uploadSubmitBtn.disabled = true;
       uploadSubmitBtn.textContent = "Prüfe Dupletten…";
@@ -1192,6 +1238,10 @@
 
   uploadPrivacy.addEventListener("change", () => {
     if (selectedRawData) parseSelectedFile(false);
+  });
+
+  uploadSport.addEventListener("change", () => {
+    if (parsedTour) renderUploadPreview();
   });
 
   uploadForm.addEventListener("submit", async (e) => {
