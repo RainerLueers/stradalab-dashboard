@@ -4,19 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>StradaLab Club – Dashboard</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.1.0">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.2.0">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="style.css?v=1.1.0">
+  <link rel="stylesheet" href="style.css?v=1.2.0">
 </head>
 <body>
 
-  <!-- LOGIN-ANSICHT -->
+  <!-- LOGIN- & BEITRITTS-ANSICHT -->
   <main id="login-view" class="auth-shell hidden">
     <div class="card auth-card">
-      <img src="favicon.svg?v=1.1.0" alt="StradaLab Logo" class="brand-logo-lg">
+      <img src="favicon.svg?v=1.2.0" alt="StradaLab Logo" class="brand-logo-lg">
       <h1 id="login-club-name">StradaLab Club</h1>
-      <p class="muted">Geschlossener Club-Bereich. Bitte mit deinen Zugangsdaten anmelden.</p>
+      <p id="auth-subtitle" class="muted">Geschlossener Club-Bereich. Bitte mit deinen Zugangsdaten anmelden.</p>
 
+      <div class="segmented" role="group" aria-label="Anmelden oder beitreten" style="width: 100%; display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 16px;">
+        <button type="button" id="auth-mode-login" class="segmented-btn active">Anmelden</button>
+        <button type="button" id="auth-mode-join" class="segmented-btn">Club beitreten</button>
+      </div>
+
+      <!-- FORMULAR: ANMELDEN -->
       <form id="login-form" class="stack">
         <label class="field">
           <span>E-Mail</span>
@@ -32,6 +38,43 @@
         <p id="login-error" class="msg msg-error hidden" role="alert"></p>
       </form>
 
+      <!-- FORMULAR: CLUB BEITRETEN (ANFRAGE) -->
+      <form id="join-form" class="stack hidden">
+        <label class="field">
+          <span>Anzeigename</span>
+          <input type="text" id="join-name" minlength="2" maxlength="60" required autocomplete="name" placeholder="z. B. Max Mustermann">
+        </label>
+
+        <label class="field">
+          <span>E-Mail-Adresse</span>
+          <input type="email" id="join-email" required autocomplete="email" placeholder="name@beispiel.de">
+        </label>
+
+        <label class="field">
+          <span>Wunschpasswort (mind. 8 Zeichen)</span>
+          <input type="password" id="join-password" minlength="8" required autocomplete="new-password" placeholder="Mindestens 8 Zeichen">
+        </label>
+
+        <label class="field">
+          <span>Passwort wiederholen</span>
+          <input type="password" id="join-password-confirm" minlength="8" required autocomplete="new-password" placeholder="Passwort bestätigen">
+        </label>
+
+        <label class="field">
+          <span>Kurzer Hinweis an den Admin (optional)</span>
+          <textarea id="join-note" rows="2" maxlength="300" placeholder="z. B. Trainingsgruppe oder Bekannter von …"></textarea>
+        </label>
+
+        <!-- Unsichtbares Honeypot-Feld gegen Bots -->
+        <div aria-hidden="true" style="position: absolute; left: -9999px; opacity: 0; pointer-events: none; height: 0; overflow: hidden;">
+          <label for="join-website">Website</label>
+          <input type="text" id="join-website" name="website" tabindex="-1" autocomplete="off">
+        </div>
+
+        <button type="submit" id="join-btn" class="btn btn-primary">Beitritt anfragen</button>
+        <p id="join-msg" class="msg hidden" role="status"></p>
+      </form>
+
       <p class="version-note">Version <span class="app-version"></span></p>
     </div>
   </main>
@@ -42,13 +85,13 @@
       <div class="topbar-inner">
         <div class="topbar-left">
           <div class="brand">
-            <img src="favicon.svg?v=1.1.0" alt="" class="brand-logo-sm">
+            <img src="favicon.svg?v=1.2.0" alt="" class="brand-logo-sm">
             <span id="nav-club-name">StradaLab Club</span>
           </div>
           <nav class="nav-tabs" aria-label="Hauptnavigation">
             <button type="button" class="nav-tab active" data-tab="feed">Aktivitäten</button>
             <button type="button" id="nav-tab-stats" class="nav-tab" data-tab="stats">Statistik</button>
-            <button type="button" class="nav-tab" data-tab="profile">Freunde &amp; Profil</button>
+            <button type="button" class="nav-tab" data-tab="profile">Freunde & Profil</button>
             <button type="button" id="nav-tab-admin" class="nav-tab hidden" data-tab="admin">Admin</button>
           </nav>
         </div>
@@ -277,6 +320,18 @@
 
       <!-- TAB 3: ADMIN-BENUTZERVERWALTUNG (NUR FÜR ADMINS SICHTBAR) -->
       <section id="tab-admin" class="tab-panel hidden">
+        <!-- OFFENE BEITRITTSANFRAGEN (NUR SICHTBAR WENN ANFRAGEN VORLIEGEN) -->
+        <div id="admin-pending-card" class="card hidden" style="margin-bottom: 20px; border-left: 4px solid #fc4c02;">
+          <div class="admin-list-header">
+            <div>
+              <h2>Offene Beitrittsanfragen</h2>
+              <span id="admin-pending-count" class="muted-inline"></span>
+            </div>
+          </div>
+          <p id="admin-pending-msg" class="msg hidden"></p>
+          <div id="admin-pending-list" class="admin-users-list"></div>
+        </div>
+
         <div class="admin-grid">
           <div class="card">
             <h2>Neues Mitglied anlegen</h2>
@@ -379,12 +434,12 @@
 
         <label class="checkbox-row">
           <input type="checkbox" id="upload-privacy" checked>
-          <span>Privatsphäre: Start &amp; Ziel auf Karte und in der GPX um 400 m kürzen</span>
+          <span>Privatsphäre: Start & Ziel auf Karte und in der GPX um 400 m kürzen</span>
         </label>
 
         <label class="checkbox-row">
           <input type="checkbox" id="upload-weather" checked>
-          <span>Wetter automatisch für Fahrtzeit &amp; Streckenmitte abrufen (Open-Meteo)</span>
+          <span>Wetter automatisch für Fahrtzeit & Streckenmitte abrufen (Open-Meteo)</span>
         </label>
 
         <button type="submit" id="upload-submit-btn" class="btn btn-primary" disabled>Tour veröffentlichen</button>
@@ -473,13 +528,13 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="config.js?v=1.1.0"></script>
-  <script src="app.js?v=1.1.0"></script>
-  <script src="gpx.js?v=1.1.0"></script>
-  <script src="fit.js?v=1.1.0"></script>
-  <script src="weather.js?v=1.1.0"></script>
-  <script src="feed.js?v=1.1.0"></script>
-  <script src="stats.js?v=1.1.0"></script>
-  <script src="admin.js?v=1.1.0"></script>
+  <script src="config.js?v=1.2.0"></script>
+  <script src="app.js?v=1.2.0"></script>
+  <script src="gpx.js?v=1.2.0"></script>
+  <script src="fit.js?v=1.2.0"></script>
+  <script src="weather.js?v=1.2.0"></script>
+  <script src="feed.js?v=1.2.0"></script>
+  <script src="stats.js?v=1.2.0"></script>
+  <script src="admin.js?v=1.2.0"></script>
 </body>
 </html>

@@ -4,12 +4,26 @@
   // DOM-Referenzen
   const loginView = document.getElementById("login-view");
   const appView = document.getElementById("app-view");
+  const authSubtitle = document.getElementById("auth-subtitle");
+  const authModeLoginBtn = document.getElementById("auth-mode-login");
+  const authModeJoinBtn = document.getElementById("auth-mode-join");
+
   const loginForm = document.getElementById("login-form");
   const loginEmail = document.getElementById("login-email");
   const loginPassword = document.getElementById("login-password");
   const loginBtn = document.getElementById("login-btn");
   const loginError = document.getElementById("login-error");
   const logoutBtn = document.getElementById("logout-btn");
+
+  const joinForm = document.getElementById("join-form");
+  const joinName = document.getElementById("join-name");
+  const joinEmail = document.getElementById("join-email");
+  const joinPassword = document.getElementById("join-password");
+  const joinPasswordConfirm = document.getElementById("join-password-confirm");
+  const joinNote = document.getElementById("join-note");
+  const joinWebsite = document.getElementById("join-website");
+  const joinBtn = document.getElementById("join-btn");
+  const joinMsg = document.getElementById("join-msg");
 
   const navAvatar = document.getElementById("nav-avatar");
   const navUsername = document.getElementById("nav-username");
@@ -94,6 +108,7 @@
   }
 
   function showMessage(el, text, type) {
+    if (!el) return;
     el.textContent = text;
     el.classList.remove("hidden", "msg-error", "msg-success");
     if (type === "error") el.classList.add("msg-error");
@@ -101,6 +116,7 @@
   }
 
   function clearMessage(el) {
+    if (!el) return;
     el.textContent = "";
     el.classList.add("hidden");
   }
@@ -108,6 +124,21 @@
   function updateAvatarPreview() {
     profilePreview.textContent = getInitials(profileName.value);
     profilePreview.style.backgroundColor = profileColor.value;
+  }
+
+  function switchAuthMode(mode) {
+    const isJoin = mode === "join";
+    if (authModeLoginBtn) authModeLoginBtn.classList.toggle("active", !isJoin);
+    if (authModeJoinBtn) authModeJoinBtn.classList.toggle("active", isJoin);
+    if (loginForm) loginForm.classList.toggle("hidden", isJoin);
+    if (joinForm) joinForm.classList.toggle("hidden", !isJoin);
+    if (authSubtitle) {
+      authSubtitle.textContent = isJoin
+        ? "Stelle eine Beitrittsanfrage. Nach kurzer Freigabe durch den Admin erhältst du eine E-Mail."
+        : "Geschlossener Club-Bereich. Bitte mit deinen Zugangsdaten anmelden.";
+    }
+    clearMessage(loginError);
+    clearMessage(joinMsg);
   }
 
   function switchTab(tabName) {
@@ -124,7 +155,14 @@
     });
   }
 
-  // Navigation
+  // Navigation & Auth-Umschalter
+  if (authModeLoginBtn) {
+    authModeLoginBtn.addEventListener("click", () => switchAuthMode("login"));
+  }
+  if (authModeJoinBtn) {
+    authModeJoinBtn.addEventListener("click", () => switchAuthMode("join"));
+  }
+
   navTabs.forEach((btn) => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
@@ -148,11 +186,105 @@
     loginBtn.textContent = "Anmelden";
 
     if (error) {
-      showMessage(loginError, "E-Mail oder Passwort nicht korrekt.", "error");
+      const msg = (error.message || "").toLowerCase();
+      if (msg.includes("email not confirmed")) {
+        showMessage(
+          loginError,
+          "Dein Zugang wurde noch nicht freigeschaltet. Du erhältst eine E-Mail, sobald ein Admin deine Anfrage bestätigt.",
+          "error"
+        );
+      } else {
+        showMessage(loginError, "E-Mail oder Passwort nicht korrekt.", "error");
+      }
     } else {
       loginPassword.value = "";
     }
   });
+
+  // Club-Beitrittsanfrage absenden
+  if (joinForm) {
+    joinForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearMessage(joinMsg);
+
+      const displayName = joinName.value.trim();
+      const email = joinEmail.value.trim();
+      const password = joinPassword.value;
+      const confirmPw = joinPasswordConfirm.value;
+      const note = joinNote ? joinNote.value.trim() : "";
+      const website = joinWebsite ? joinWebsite.value : "";
+
+      if (displayName.length < 2) {
+        showMessage(joinMsg, "Bitte gib einen Anzeigenamen ein.", "error");
+        return;
+      }
+
+      if (password.length < 8) {
+        showMessage(
+          joinMsg,
+          "Das Passwort muss mindestens 8 Zeichen lang sein.",
+          "error"
+        );
+        return;
+      }
+
+      if (password !== confirmPw) {
+        showMessage(
+          joinMsg,
+          "Die beiden Passwörter stimmen nicht überein.",
+          "error"
+        );
+        return;
+      }
+
+      joinBtn.disabled = true;
+      joinBtn.textContent = "Sende Anfrage…";
+
+      try {
+        const res = await fetch(`${cfg.supabaseUrl}/functions/v1/join-request`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: cfg.supabaseKey
+          },
+          body: JSON.stringify({
+            display_name: displayName,
+            email,
+            password,
+            note,
+            website
+          })
+        });
+
+        let body = {};
+        try {
+          body = await res.json();
+        } catch (_err) {
+          body = {};
+        }
+
+        if (!res.ok) {
+          throw new Error(body.error || `Serverfehler (${res.status})`);
+        }
+
+        joinForm.reset();
+        showMessage(
+          joinMsg,
+          "Deine Beitrittsanfrage wurde übermittelt! Sobald der Admin deinen Zugang freigibt, bekommst du eine E-Mail und kannst dich anmelden.",
+          "success"
+        );
+      } catch (err) {
+        showMessage(
+          joinMsg,
+          err.message || "Anfrage konnte nicht gesendet werden.",
+          "error"
+        );
+      } finally {
+        joinBtn.disabled = false;
+        joinBtn.textContent = "Beitritt anfragen";
+      }
+    });
+  }
 
   logoutBtn.addEventListener("click", async () => {
     await sb.auth.signOut();
@@ -354,7 +486,7 @@
     });
   }
 
-  // Mitgliederliste & Freigabeliste aktualisieren (z. B. nach Admin-Änderung)
+  // Mitgliederliste & Freigabeliste aktualisieren (nur freigegebene Mitglieder)
   async function reloadMembers() {
     if (!state.user) return;
     const [membersRes, sharesRes] = await Promise.all([
@@ -364,8 +496,9 @@
 
     if (membersRes.error) return;
 
-    state.members = membersRes.data || [];
-    state.profile = state.members.find((m) => m.id === state.user.id) || state.profile;
+    const allProfiles = membersRes.data || [];
+    state.profile = allProfiles.find((m) => m.id === state.user.id) || state.profile;
+    state.members = allProfiles.filter((m) => m.is_approved !== false);
     state.friendIds = new Set((sharesRes.data || []).map((r) => r.friend_id));
 
     renderFriendsList();
@@ -387,8 +520,22 @@
       return;
     }
 
-    state.members = membersRes.data || [];
-    state.profile = state.members.find((m) => m.id === user.id) || null;
+    const allProfiles = membersRes.data || [];
+    state.profile = allProfiles.find((m) => m.id === user.id) || null;
+
+    // Zusätzliche Absicherung: unbestätigte Profile sofort wieder abmelden
+    if (state.profile && state.profile.is_approved === false) {
+      await sb.auth.signOut();
+      switchAuthMode("login");
+      showMessage(
+        loginError,
+        "Dein Zugang wurde noch nicht freigeschaltet. Du erhältst eine E-Mail, sobald ein Admin deine Anfrage bestätigt.",
+        "error"
+      );
+      return;
+    }
+
+    state.members = allProfiles.filter((m) => m.is_approved !== false);
     state.friendIds = new Set((sharesRes.data || []).map((r) => r.friend_id));
 
     const isAdmin = Boolean(state.profile?.is_admin);

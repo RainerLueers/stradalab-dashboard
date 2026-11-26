@@ -1,4 +1,11 @@
 (() => {
+  const adminTabBtn = document.getElementById("nav-tab-admin");
+
+  const pendingCard = document.getElementById("admin-pending-card");
+  const pendingCountBadge = document.getElementById("admin-pending-count");
+  const pendingMsg = document.getElementById("admin-pending-msg");
+  const pendingContainer = document.getElementById("admin-pending-list");
+
   const createForm = document.getElementById("admin-create-form");
   const createName = document.getElementById("admin-create-name");
   const createEmail = document.getElementById("admin-create-email");
@@ -26,6 +33,7 @@
   if (!createForm || !usersContainer) return;
 
   function showMsg(el, text, type) {
+    if (!el) return;
     el.textContent = text;
     el.classList.remove("hidden", "msg-error", "msg-success");
     if (type === "error") el.classList.add("msg-error");
@@ -33,6 +41,7 @@
   }
 
   function clearMsg(el) {
+    if (!el) return;
     el.textContent = "";
     el.classList.add("hidden");
   }
@@ -67,6 +76,12 @@
       out += chars[arr[i] % chars.length];
     }
     return out;
+  }
+
+  function updateAdminTabBadge(pendingCount) {
+    if (!adminTabBtn) return;
+    adminTabBtn.textContent =
+      pendingCount > 0 ? `Admin (${pendingCount})` : "Admin";
   }
 
   // Aufruf der Supabase Edge Function `admin-users`
@@ -106,7 +121,7 @@
     return body;
   }
 
-  // Mitgliederliste laden & rendern
+  // Mitgliederliste & offene Beitrittsanfragen laden
   async function loadUsers() {
     const app = window.StradaApp;
     if (!app?.profile?.is_admin) return;
@@ -122,12 +137,170 @@
 
     try {
       const { users = [] } = await callAdmin("list");
-      renderUsers(users);
+      const pendingUsers = users.filter((u) => u.is_approved === false);
+      const approvedUsers = users.filter((u) => u.is_approved !== false);
+
+      updateAdminTabBadge(pendingUsers.length);
+      renderPendingRequests(pendingUsers);
+      renderUsers(approvedUsers);
     } catch (err) {
       usersContainer.textContent = "";
       showMsg(listMsg, `Fehler beim Laden: ${err.message}`, "error");
     } finally {
       refreshBtn.disabled = false;
+    }
+  }
+
+  function renderPendingRequests(pendingUsers) {
+    if (!pendingCard || !pendingContainer) return;
+    pendingContainer.textContent = "";
+
+    if (pendingUsers.length === 0) {
+      pendingCard.classList.add("hidden");
+      clearMsg(pendingMsg);
+      return;
+    }
+
+    pendingCard.classList.remove("hidden");
+    if (pendingCountBadge) {
+      pendingCountBadge.textContent =
+        pendingUsers.length === 1
+          ? "1 offene Anfrage"
+          : `${pendingUsers.length} offene Anfragen`;
+    }
+
+    pendingUsers.forEach((u) => {
+      const row = document.createElement("div");
+      row.className = "admin-user-row";
+
+      const left = document.createElement("div");
+      left.className = "admin-user-info";
+
+      const av = document.createElement("span");
+      av.className = "avatar";
+      av.textContent = getInitials(u.display_name);
+      av.style.backgroundColor = u.avatar_color || "#6b7280";
+
+      const details = document.createElement("div");
+      details.className = "admin-user-details";
+
+      const nameLine = document.createElement("div");
+      nameLine.className = "admin-user-name-line";
+
+      const nameEl = document.createElement("strong");
+      nameEl.textContent = u.display_name;
+      nameLine.appendChild(nameEl);
+
+      const newBadge = document.createElement("span");
+      newBadge.className = "badge badge-admin";
+      newBadge.textContent = "Anfrage";
+      nameLine.appendChild(newBadge);
+
+      const emailEl = document.createElement("div");
+      emailEl.className = "admin-user-email";
+      emailEl.textContent = u.email;
+
+      const metaEl = document.createElement("div");
+      metaEl.className = "admin-user-meta";
+      metaEl.textContent = `Angefragt am ${formatDateShort(u.created_at)}`;
+
+      details.appendChild(nameLine);
+      details.appendChild(emailEl);
+      details.appendChild(metaEl);
+
+      if (u.join_note && u.join_note.trim()) {
+        const noteEl = document.createElement("div");
+        noteEl.style.marginTop = "6px";
+        noteEl.style.padding = "6px 10px";
+        noteEl.style.background = "#f3f4f6";
+        noteEl.style.borderRadius = "6px";
+        noteEl.style.fontSize = "13px";
+        noteEl.style.color = "#374151";
+        noteEl.textContent = `„${u.join_note.trim()}“`;
+        details.appendChild(noteEl);
+      }
+
+      left.appendChild(av);
+      left.appendChild(details);
+
+      const actions = document.createElement("div");
+      actions.className = "admin-user-actions";
+
+      const approveBtn = document.createElement("button");
+      approveBtn.type = "button";
+      approveBtn.className = "btn btn-primary btn-sm";
+      approveBtn.textContent = "Freigeben";
+      approveBtn.addEventListener("click", () => approveUser(u, approveBtn, rejectBtn));
+
+      const rejectBtn = document.createElement("button");
+      rejectBtn.type = "button";
+      rejectBtn.className = "btn btn-danger-ghost btn-sm";
+      rejectBtn.textContent = "Ablehnen";
+      rejectBtn.addEventListener("click", () => rejectUser(u, approveBtn, rejectBtn));
+
+      actions.appendChild(approveBtn);
+      actions.appendChild(rejectBtn);
+
+      row.appendChild(left);
+      row.appendChild(actions);
+      pendingContainer.appendChild(row);
+    });
+  }
+
+  async function approveUser(user, approveBtn, rejectBtn) {
+    clearMsg(pendingMsg);
+    clearMsg(listMsg);
+    approveBtn.disabled = true;
+    rejectBtn.disabled = true;
+    approveBtn.textContent = "Schalte frei…";
+
+    try {
+      const res = await callAdmin("approve", { user_id: user.id });
+      await loadUsers();
+      if (typeof window.StradaApp?.reloadMembers === "function") {
+        await window.StradaApp.reloadMembers();
+      }
+      const mailNote = res.email_sent
+        ? " Willkommens-E-Mail wurde verschickt."
+        : " (Hinweis: Willkommens-E-Mail konnte nicht versendet werden.)";
+      showMsg(
+        listMsg,
+        `${user.display_name} (${user.email}) wurde freigeschaltet.${mailNote}`,
+        "success"
+      );
+    } catch (err) {
+      approveBtn.disabled = false;
+      rejectBtn.disabled = false;
+      approveBtn.textContent = "Freigeben";
+      showMsg(pendingMsg, `Freigabe fehlgeschlagen: ${err.message}`, "error");
+    }
+  }
+
+  async function rejectUser(user, approveBtn, rejectBtn) {
+    const confirmed = window.confirm(
+      `Beitrittsanfrage von „${user.display_name}“ (${user.email}) wirklich ablehnen und entfernen?`
+    );
+    if (!confirmed) return;
+
+    clearMsg(pendingMsg);
+    clearMsg(listMsg);
+    approveBtn.disabled = true;
+    rejectBtn.disabled = true;
+    rejectBtn.textContent = "Entferne…";
+
+    try {
+      await callAdmin("reject", { user_id: user.id });
+      await loadUsers();
+      showMsg(
+        listMsg,
+        `Beitrittsanfrage von ${user.display_name} wurde abgelehnt und entfernt.`,
+        "success"
+      );
+    } catch (err) {
+      approveBtn.disabled = false;
+      rejectBtn.disabled = false;
+      rejectBtn.textContent = "Ablehnen";
+      showMsg(pendingMsg, `Ablehnen fehlgeschlagen: ${err.message}`, "error");
     }
   }
 
@@ -361,7 +534,6 @@
   // Events
   refreshBtn.addEventListener("click", loadUsers);
 
-  const adminTabBtn = document.getElementById("nav-tab-admin");
   if (adminTabBtn) {
     adminTabBtn.addEventListener("click", loadUsers);
   }
@@ -375,9 +547,13 @@
   window.addEventListener("strada:logout", () => {
     usersContainer.textContent = "";
     userCountBadge.textContent = "";
+    if (pendingContainer) pendingContainer.textContent = "";
+    if (pendingCard) pendingCard.classList.add("hidden");
+    updateAdminTabBadge(0);
     createForm.reset();
     clearMsg(createMsg);
     clearMsg(listMsg);
+    clearMsg(pendingMsg);
     closePwModal();
   });
 })();
