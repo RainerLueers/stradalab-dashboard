@@ -53,16 +53,33 @@
   const editSaveBtn = document.getElementById("edit-save-btn");
   const editMsg = document.getElementById("edit-msg");
 
-  // Dynamischer "Weitere Touren laden"-Button unterhalb der Feed-Liste
+  // Dynamischer "Weitere Touren laden"-Bereich unterhalb der Feed-Liste
   const loadMoreWrap = document.createElement("div");
-  loadMoreWrap.className = "hidden";
+  loadMoreWrap.className = "card hidden";
+  loadMoreWrap.style.marginTop = "20px";
+  loadMoreWrap.style.padding = "18px 20px";
   loadMoreWrap.style.textAlign = "center";
-  loadMoreWrap.style.marginTop = "16px";
+  loadMoreWrap.style.borderTop = "3px solid var(--accent)";
+  loadMoreWrap.style.display = "flex";
+  loadMoreWrap.style.flexDirection = "column";
+  loadMoreWrap.style.alignItems = "center";
+  loadMoreWrap.style.gap = "10px";
+
+  const loadMoreInfo = document.createElement("p");
+  loadMoreInfo.className = "muted";
+  loadMoreInfo.style.margin = "0";
+  loadMoreInfo.textContent = "Es sind noch weitere Touren vorhanden.";
 
   const loadMoreBtn = document.createElement("button");
   loadMoreBtn.type = "button";
-  loadMoreBtn.className = "btn btn-ghost";
-  loadMoreBtn.textContent = "Weitere Touren laden";
+  loadMoreBtn.className = "btn btn-primary";
+  loadMoreBtn.style.padding = "11px 26px";
+  loadMoreBtn.style.fontSize = "0.98rem";
+  loadMoreBtn.style.minWidth = "240px";
+  loadMoreBtn.style.boxShadow = "0 2px 8px rgba(252, 76, 2, 0.25)";
+  loadMoreBtn.textContent = "↓ Weitere Touren laden";
+
+  loadMoreWrap.appendChild(loadMoreInfo);
   loadMoreWrap.appendChild(loadMoreBtn);
 
   if (feedList && feedList.parentNode) {
@@ -267,9 +284,16 @@
   function updateLoadMoreUI() {
     loadMoreWrap.classList.toggle("hidden", !hasMoreTours);
     loadMoreBtn.disabled = isLoadingTours;
+
+    const count = allTours.length;
+    loadMoreInfo.textContent =
+      count === 1
+        ? "Aktuell 1 Tour angezeigt – es sind noch ältere Touren vorhanden."
+        : `Aktuell ${count} Touren angezeigt – es sind noch ältere Touren vorhanden.`;
+
     loadMoreBtn.textContent = isLoadingTours
       ? "Lade weitere Touren…"
-      : "Weitere Touren laden";
+      : "↓ Weitere Touren laden";
   }
 
   // Duplettenprüfung gegen eigene Touren in Supabase (erkennt GPX + FIT derselben Fahrt,
