@@ -235,7 +235,7 @@
         </div>
       </section>
 
-      <!-- TAB 2: PROFIL, GARMIN SYNC & FREIGABELISTE -->
+      <!-- TAB 2: PROFIL, GARMIN SYNC, SPINNR PRO & FREIGABELISTE -->
       <section id="tab-profile" class="tab-panel hidden">
         <div class="grid-2">
           <div class="stack" style="gap: 20px;">
@@ -329,6 +329,41 @@
               </div>
 
               <p id="garmin-msg" class="msg hidden" role="status"></p>
+            </div>
+
+            <div class="card" id="spinnr-card">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px;">
+                <h2 style="margin: 0;">SPINNR Pro – Direkt-Upload</h2>
+                <span id="spinnr-status-badge" class="badge badge-private">Lädt…</span>
+              </div>
+              <p id="spinnr-status-text" class="muted">
+                Erzeuge einen persönlichen Upload-Schlüssel und trage ihn in SPINNR Pro unter Einstellungen ein, um Fahrten direkt nach StradaLab zu senden.
+              </p>
+
+              <div id="spinnr-token-reveal" class="stack hidden" style="margin: 12px 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg);">
+                <label class="field">
+                  <span>Endpoint-URL (für SPINNR Pro Einstellungen)</span>
+                  <div class="input-with-btn">
+                    <input type="text" id="spinnr-endpoint-input" readonly style="font-family: monospace; font-size: 0.85rem;">
+                    <button type="button" id="spinnr-copy-endpoint-btn" class="btn btn-ghost btn-sm">Kopieren</button>
+                  </div>
+                </label>
+
+                <label class="field">
+                  <span>Persönlicher API-Schlüssel (wird nur jetzt einmalig angezeigt)</span>
+                  <div class="input-with-btn">
+                    <input type="text" id="spinnr-token-input" readonly style="font-family: monospace; font-size: 0.85rem;">
+                    <button type="button" id="spinnr-copy-token-btn" class="btn btn-ghost btn-sm">Kopieren</button>
+                  </div>
+                </label>
+              </div>
+
+              <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px;">
+                <button type="button" id="spinnr-generate-btn" class="btn btn-primary">Upload-Schlüssel erzeugen</button>
+                <button type="button" id="spinnr-revoke-btn" class="btn btn-danger-ghost hidden">Schlüssel widerrufen</button>
+              </div>
+
+              <p id="spinnr-msg" class="msg hidden" role="status"></p>
             </div>
 
             <div class="card">
@@ -563,5 +598,6 @@
   <script src="stats.js?v=1.3.1"></script>
   <script src="admin.js?v=1.3.1"></script>
   <script src="garmin.js?v=1.3.1"></script>
+  <script src="spinnr.js?v=1.3.1"></script>
 </body>
 </html>
